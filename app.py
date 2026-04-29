@@ -6,17 +6,19 @@ app = Flask(__name__)
 
 # Create the database and user table
 def init_db():
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL
-        )
-    ''')
-    conn.commit()
-    conn.close()
+    conn = sqlite3.connect('database.db', timeout=20)
+    try:
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL
+            )
+        ''')
+        conn.commit()
+    finally:
+        conn.close()
 
 init_db()
 
@@ -80,38 +82,46 @@ def duel_page():
 @app.route('/api/register', methods=['POST'])
 def register():
     data = request.json
+    conn = sqlite3.connect('database.db', timeout=20)
     try:
-        conn = sqlite3.connect('database.db')
         cursor = conn.cursor()
         cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", 
                        (data['username'], data['password']))
         conn.commit()
-        conn.close()
         return jsonify({"message": "Success"}), 201
+    except sqlite3.IntegrityError:
+        return jsonify({"error": "User already exists"}), 400
     except Exception as e:
         print(f"Register Error: {e}")
-        return jsonify({"error": "User already exists"}), 400
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
 
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.json
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM users WHERE username = ? AND password = ?", 
-                   (data['username'], data['password']))
-    user = cursor.fetchone()
-    conn.close()
-    
-    if user:
-        return jsonify({"username": data['username'], "token": "ok"}), 200
-    else:
-        return jsonify({"error": "Invalid credentials"}), 400
+    conn = sqlite3.connect('database.db', timeout=20)
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE username = ? AND password = ?", 
+                       (data['username'], data['password']))
+        user = cursor.fetchone()
+        if user:
+            return jsonify({"username": data['username'], "token": "ok"}), 200
+        else:
+            return jsonify({"error": "Invalid credentials"}), 400
+    finally:
+        conn.close()
 
 @app.route('/healthz')
 def health_check():
     return jsonify({"status": "healthy"}), 200
 
+@app.route('/healthz')
+def healthz():
+    return jsonify({"status": "ready"}), 200
+
 if __name__ == '__main__':
-    # Use environment port for deployment compatibility
-    port = int(os.environ.get('PORT', 3000))
-    app.run(debug=True, host='0.0.0.0', port=port)
+    # Render provides PORT environment variable
+    port = int(os.environ.get("PORT", 5000))
+    app.run(debug=False, host='0.0.0.0', port=port)
