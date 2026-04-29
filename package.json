@@ -4,10 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx server.ts",
-    "start": "tsx server.ts",
-    "build": "vite build",
-    "preview": "vite preview",
+    "dev": "python3 app.py",
+    "start": "python3 app.py",
+    "build": "echo 'No static build needed for Flask'",
+    "preview": "python3 app.py",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"
   },
