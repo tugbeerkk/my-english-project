@@ -217,15 +217,14 @@
             gameContainer.classList.remove('hidden');
             document.getElementById('match-id').textContent = data.matchId;
             
-            p1Data = data.p1;
-            p2Data = data.p2;
+            // Determine who is local player
+            const isP1 = data.p1.id === socket.id;
+            p1Data = isP1 ? data.p1 : data.p2;
+            p2Data = isP1 ? data.p2 : data.p1;
 
-            document.getElementById('p1-name').textContent = p1Data.username;
+            document.getElementById('p1-name').textContent = p1Data.username + " (You)";
             document.getElementById('p2-name').textContent = p2Data.username;
             
-            p1Id = p1Data.id;
-            p2Id = p2Data.id;
-
             input.value = "";
             input.focus();
         });
@@ -244,19 +243,23 @@
         });
 
         socket.on('match_update', (data) => {
-            const p1 = data.p1;
-            const p2 = data.p2;
+            // Re-map HP based on who we are
+            const isP1 = data.p1.id === socket.id;
+            const myHp = isP1 ? data.p1.hp : data.p2.hp;
+            const oppHp = isP1 ? data.p2.hp : data.p1.hp;
 
-            document.getElementById('p1-hp-bar').style.width = p1.hp + "%";
-            document.getElementById('p2-hp-bar').style.width = p2.hp + "%";
+            document.getElementById('p1-hp-bar').style.width = myHp + "%";
+            document.getElementById('p2-hp-bar').style.width = oppHp + "%";
 
             // Damage effect
-            if (data.winner !== socket.id) {
-                document.getElementById('p1-avatar').classList.add('scale-90', 'opacity-50');
-                setTimeout(() => document.getElementById('p1-avatar').classList.remove('scale-90', 'opacity-50'), 200);
+            if (data.attacker_id !== socket.id) {
+                // We got hit
+                document.getElementById('p1-avatar').classList.add('scale-90', 'opacity-50', 'bg-red-600');
+                setTimeout(() => document.getElementById('p1-avatar').classList.remove('scale-90', 'opacity-50', 'bg-red-600'), 200);
             } else {
-                document.getElementById('p2-avatar').classList.add('scale-90', 'opacity-50');
-                setTimeout(() => document.getElementById('p2-avatar').classList.remove('scale-90', 'opacity-50'), 200);
+                // Opponent got hit
+                document.getElementById('p2-avatar').classList.add('scale-90', 'opacity-50', 'bg-red-600');
+                setTimeout(() => document.getElementById('p2-avatar').classList.remove('scale-90', 'opacity-50', 'bg-red-600'), 200);
             }
         });
 
@@ -271,7 +274,5 @@
                 "The timeline was altered. Better luck next time.";
         });
     </script>
-</body>
-</html>
 </body>
 </html>
