@@ -200,7 +200,8 @@ io.on('connection', (socket) => {
   });
 });
 
-// Listen on Port 3000
-httpServer.listen(3000, '0.0.0.0', () => {
-  console.log('Server is running on http://localhost:3000');
+// Listen on Port
+const PORT = process.env.PORT || 3000;
+httpServer.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server is running on http://0.0.0.0:${PORT}`);
 });
