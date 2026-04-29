@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unit 7: The Ghost Chef - Festival Rescue</title>
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <style>
+        .chef-panel {
+            @apply bg-white rounded-[2.5rem] shadow-2xl border-b-8 border-slate-200 overflow-hidden;
+        }
+        .ingredient-card {
+            @apply p-4 bg-orange-50 border-2 border-orange-100 rounded-2xl font-bold text-orange-700 text-center cursor-move transition active:scale-95;
+        }
+        .drop-zone {
+            @apply min-h-[60px] border-2 border-dashed border-slate-300 rounded-2xl flex items-center justify-center gap-2 p-2;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 50;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.6);
+            backdrop-filter: blur(8px);
+        }
+    </style>
+</head>
+<body class="bg-amber-50 min-h-screen p-4 font-sans text-slate-800">
+
+    <div class="max-w-4xl mx-auto">
+        <header class="flex justify-between items-center mb-8">
+            <a href="/" class="text-orange-700 font-bold hover:underline">← 10th grade English platform</a>
+            <div class="flex gap-4">
+                <div class="bg-white px-6 py-2 rounded-2xl shadow-sm border border-orange-100 flex items-center gap-3">
+                    <span class="text-xl">🌟</span>
+                    <span id="score" class="font-black text-orange-600">0</span>
+                </div>
+                <div class="bg-white px-6 py-2 rounded-2xl shadow-sm border border-orange-100 flex items-center gap-3">
+                    <span class="text-xl">❤️</span>
+                    <span id="lives" class="font-black text-red-500">3</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Intro Story Screen -->
+        <div id="screen-intro" class="chef-panel p-12 text-center flex flex-col justify-center items-center">
+            <div class="text-9xl mb-8 animate-bounce">👻</div>
+            <h1 class="text-4xl font-black text-slate-900 mb-6">A Ghost in the Kitchen!</h1>
+            <div class="max-w-lg bg-orange-50 p-8 rounded-[3rem] border-2 border-orange-100 mb-10 text-lg text-slate-700 leading-relaxed italic">
+                "You are the head chef of a big festival, but now you are a ghost! 😱 You cannot touch the food or the stove. The only way to save the festival is to give clear instructions to your helpers. Use your grammar carefully to cook the food. If you make a mistake, you might start a fire!"
+            </div>
+            <button onclick="startGame()" class="bg-orange-600 text-white px-12 py-5 rounded-3xl font-black text-2xl shadow-xl border-b-8 border-orange-800 hover:bg-orange-700 transition active:translate-y-1 active:border-b-0">START THE WORK 👨‍🍳</button>
+        </div>
+
+        <main id="game-main" class="chef-panel p-8 hidden">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+                <div class="flex items-center gap-4">
+                    <div class="text-6xl animate-pulse" id="chef-status">👻</div>
+                    <div>
+                        <h1 class="text-3xl font-black text-slate-900">The Ghost Chef</h1>
+                        <p class="text-orange-500 font-bold italic" id="stage-name">Appetizer Stage</p>
+                    </div>
+                </div>
+                <div class="flex flex-col items-end">
+                    <span class="text-xs font-black text-slate-300 uppercase tracking-widest">Active Festival</span>
+                    <span class="text-lg font-bold text-slate-600" id="festival-name">Spring Festival</span>
+                </div>
+            </div>
+
+            <!-- Game Content -->
+            <div id="game-arena" class="space-y-8">
+                <!-- Task will be injected here -->
+                <div class="text-center py-20">
+                    <button onclick="startLevel()" class="bg-orange-600 text-white px-12 py-5 rounded-3xl font-black text-2xl shadow-xl border-b-8 border-orange-800 hover:bg-orange-700 transition active:translate-y-1 active:border-b-0">START SERVICE 👨‍🍳</button>
+                </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="mt-12 h-4 bg-slate-100 rounded-full overflow-hidden flex">
+                <div id="progress" class="h-full bg-orange-500 transition-all duration-500" style="width: 0%"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Feedback Modal -->
+    <div id="result-modal" class="modal flex items-center justify-center">
+        <div class="bg-white rounded-[3rem] p-12 max-w-md w-full shadow-2xl mx-4 text-center border-b-8 border-orange-200">
+            <div class="text-8xl mb-6" id="result-emoji">🥘</div>
+            <h2 class="text-4xl font-black text-slate-900 mb-4" id="result-title">Delicious!</h2>
+            <p class="text-slate-500 text-lg mb-8" id="result-text">The dish was perfectly prepared by your instructions.</p>
+            <button onclick="nextTaskOrLevel()" class="bg-orange-600 text-white px-10 py-5 rounded-2xl font-bold text-xl w-full shadow-lg hover:bg-orange-700 transition active:scale-95">Next Recipe</button>
+        </div>
+    </div>
+
+    <script>
+        let score = 0;
+        let lives = 3;
+        let currentLevel = 0; // 0: Appetizer, 1: Main Course, 2: Dessert
+        let currentTaskIdx = 0;
+        let progress = 0;
+
+        const levels = [
+            {
+                name: "Appetizer Stage",
+                festival: "Tomato Festival (La Tomatina) 🇪🇸",
+                tasks: [
+                    { type: "passive", q: "The tomatoes / throw / at participants", words: ["The tomatoes", "are thrown", "at participants"], target: "The tomatoes are thrown at participants.", hint: "Present Simple Passive" },
+                    { type: "vocabulary", q: "People wear old clothes because the _______ is very messy.", o: ["celebration", "tradition", "participation"], a: 0, emoji: "👕" },
+                    { type: "gerund", q: "You should avoid _______ (wear) white clothes here.", o: ["wearing", "to wear", "wear"], a: 0 }
+                ]
+            },
+            {
+                name: "Colorful Main Course",
+                festival: "Holi Festival (Festival of Colors) 🇮🇳",
+                tasks: [
+                    { type: "passive", q: "The arrival of spring / celebrate / with colors", words: ["The arrival of spring", "is celebrated", "with colors"], target: "The arrival of spring is celebrated with colors.", hint: "Passive voice (is/are + V3)" },
+                    { type: "gerund", q: "They suggest _______ (buy) organic coloring powders.", o: ["buying", "to buy", "buy"], a: 0 },
+                    { type: "vocabulary", q: "The festival _______ the victory of good over evil.", o: ["symbolizes", "participates", "prepares"], a: 0, emoji: "✨" }
+                ]
+            },
+            {
+                name: "Cherry Blossom Picnic",
+                festival: "Hanami Festival 🇯🇵",
+                tasks: [
+                    { type: "passive", q: "The cherry blossoms / admire / by millions", words: ["The cherry blossoms", "are admired", "by millions"], target: "The cherry blossoms are admired by millions.", hint: "Passive structure" },
+                    { type: "gerund", q: "We decided _______ (have) a picnic under the trees.", o: ["having", "to have", "have"], a: 1 },
+                    { type: "vocabulary", q: "The _______ of the flowers only lasts for a few weeks.", o: ["beauty", "beautiful", "beautified"], a: 0, emoji: "🌸" }
+                ]
+            },
+            {
+                name: "Grand Dessert",
+                festival: "Oktoberfest 🇩🇪",
+                tasks: [
+                    { type: "passive", q: "Traditional costumes / wear / by the guests", words: ["Traditional costumes", "are worn", "by the guests"], target: "Traditional costumes are worn by the guests.", hint: "Passive voice (be + V3)" },
+                    { type: "gerund", q: "Do you mind _______ (wait) in the queue for a table?", o: ["waiting", "to wait", "wait"], a: 0 },
+                    { type: "vocabulary", q: "It is one of the most _______ festivals in the world.", o: ["famous", "fame", "famed"], a: 0, emoji: "🥨" }
+                ]
+            }
+        ];
+
+        function startGame() {
+            document.getElementById('screen-intro').classList.add('hidden');
+            document.getElementById('game-main').classList.remove('hidden');
+            startLevel();
+        }
+
+        function startLevel() {
+            renderTask();
+        }
+
+        function renderTask() {
+            const arena = document.getElementById('game-arena');
+            const level = levels[currentLevel];
+            const task = level.tasks[currentTaskIdx];
+            
+            document.getElementById('stage-name').textContent = level.name;
+            document.getElementById('festival-name').textContent = level.festival;
+
+            if (task.type === "passive") {
+                renderPassiveTask(task, arena);
+            } else if (task.type === "vocabulary") {
+                renderMultipleChoice(task, arena, "Festival Discovery");
+            } else if (task.type === "gerund") {
+                renderMultipleChoice(task, arena, "Grammar Secrets");
+            }
+        }
+
+        function renderPassiveTask(task, arena) {
+            arena.innerHTML = `
+                <div class="text-center">
+                    <p class="text-indigo-600 font-bold mb-2">Build the Passive Instruction:</p>
+                    <h2 class="text-2xl font-black text-slate-800 mb-8 italic">"${task.q}"</h2>
+                    
+                    <div id="drop-zone" class="drop-zone mb-8 bg-slate-50 border-slate-200">
+                        <span class="text-slate-300">Click words in order...</span>
+                    </div>
+
+                    <div class="flex flex-wrap justify-center gap-3">
+                        ${task.words.sort(() => Math.random() - 0.5).map(w => `
+                            <button onclick="addWord('${w}')" class="ingredient-card hover:bg-orange-100">${w}</button>
+                        `).join('')}
+                    </div>
+
+                    <div class="mt-8">
+                        <button onclick="resetWords()" class="text-slate-400 text-sm underline font-bold">Reset Words</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        let selectedWords = [];
+        function addWord(word) {
+            const task = levels[currentLevel].tasks[currentTaskIdx];
+            selectedWords.push(word);
+            const dropZone = document.getElementById('drop-zone');
+            dropZone.innerHTML = selectedWords.map(w => `<span class="px-4 py-2 bg-white rounded-xl shadow-sm border border-slate-100 font-bold">${w}</span>`).join('');
+            
+            if (selectedWords.length === task.words.length) {
+                checkPassiveAnswer();
+            }
+        }
+
+        function resetWords() {
+            selectedWords = [];
+            document.getElementById('drop-zone').innerHTML = '<span class="text-slate-300">Click words in order...</span>';
+        }
+
+        function checkPassiveAnswer() {
+            const task = levels[currentLevel].tasks[currentTaskIdx];
+            const answer = selectedWords.join(' ');
+            if (answer === task.target) {
+                showResult(true, "Great job! The food is ready to serve! +20 Points", "👩‍🍳");
+            } else {
+                showResult(false, "Oh no! Your helpers didn't understand you.", "🔥");
+            }
+        }
+
+        function renderMultipleChoice(task, arena, title) {
+            arena.innerHTML = `
+                <div class="max-w-md mx-auto text-center">
+                    <div class="text-5xl mb-6">${task.emoji || "🤔"}</div>
+                    <h3 class="text-blue-500 font-black uppercase text-xs tracking-widest mb-2">${title}</h3>
+                    <p class="text-xl font-bold text-slate-700 mb-8 p-6 bg-slate-50 rounded-3xl border-2 border-slate-100">
+                        ${task.q.replace('_______', '<span class="text-orange-600 underline">_______</span>')}
+                    </p>
+                    <div class="grid grid-cols-1 gap-3">
+                        ${task.o.map((opt, i) => `
+                            <button onclick="checkMC(${i})" class="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl text-left font-bold hover:border-orange-500 hover:bg-orange-50 transition active:scale-95 text-slate-700 shadow-sm">
+                                ${opt}
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function checkMC(idx) {
+            const task = levels[currentLevel].tasks[currentTaskIdx];
+            if (idx === task.a) {
+                showResult(true, "Great choice, Chef! The flavor is perfect.", "✨");
+            } else {
+                showResult(false, "That doesn't taste right...", "🤢");
+            }
+        }
+
+        function showResult(success, text, emoji) {
+            const modal = document.getElementById('result-modal');
+            document.getElementById('result-title').textContent = success ? "Success!" : "Kitchen Disaster!";
+            document.getElementById('result-text').textContent = text;
+            document.getElementById('result-emoji').textContent = emoji;
+            
+            if (success) {
+                score += 20;
+            } else {
+                lives--;
+                score = Math.max(0, score - 5);
+            }
+            
+            document.getElementById('score').textContent = score;
+            document.getElementById('lives').textContent = lives;
+            modal.style.display = 'flex';
+
+            if (lives <= 0) {
+                document.getElementById('result-title').textContent = "FIRE IN THE KITCHEN!";
+                document.getElementById('result-text').textContent = "The festival is cancelled. You need more training!";
+                document.querySelector('#result-modal button').textContent = "Restart Training";
+                document.querySelector('#result-modal button').onclick = () => location.reload();
+            }
+        }
+
+        function nextTaskOrLevel() {
+            document.getElementById('result-modal').style.display = 'none';
+            selectedWords = [];
+            currentTaskIdx++;
+            
+            progress = ((currentLevel * levels[0].tasks.length + currentTaskIdx) / (levels.length * levels[0].tasks.length)) * 100;
+            document.getElementById('progress').style.width = progress + "%";
+
+            if (currentTaskIdx >= levels[currentLevel].tasks.length) {
+                currentTaskIdx = 0;
+                currentLevel++;
+                if (currentLevel >= levels.length) {
+                    showFinalVictory();
+                    return;
+                }
+            }
+            renderTask();
+        }
+
+        function showFinalVictory() {
+            document.getElementById('game-arena').innerHTML = `
+                <div class="text-center py-10 scale-110">
+                    <div class="text-9xl mb-8">🏆</div>
+                    <h2 class="text-4xl font-black text-slate-900 mb-4">You Saved the Festival!</h2>
+                    <div class="p-8 bg-orange-100 rounded-[3rem] border-4 border-orange-200 mb-8 max-w-lg mx-auto">
+                        <p class="text-lg text-orange-900 font-medium italic">
+                            "You are the best chef in the world! You gave perfect instructions to your helpers. Everyone loved the food at the festival. Great work!"
+                        </p>
+                    </div>
+                    <p class="text-3xl font-black text-orange-600 mb-8">Score: ${score}</p>
+                    <button onclick="location.reload()" class="bg-slate-900 text-white px-12 py-5 rounded-3xl font-black text-xl shadow-2xl hover:scale-105 transition">PLAY AGAIN</button>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

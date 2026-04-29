@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Time Traveler's Duel - V3 Master</title>
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&family=Space+Grotesk:wght@300;500;700&display=swap');
+        
+        body { font-family: 'Space Grotesk', sans-serif; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        .time-portal {
+            background: radial-gradient(circle at center, #4f46e5 0%, #0f172a 70%);
+        }
+        
+        .hp-bar {
+            @apply h-4 bg-slate-800 rounded-full border border-slate-700 overflow-hidden;
+        }
+        .hp-fill {
+            @apply h-full transition-all duration-500 ease-out;
+        }
+        
+        .duel-card {
+            @apply bg-slate-900 border-2 border-slate-800 rounded-[2rem] p-6 shadow-2xl;
+        }
+
+        @keyframes pulse-red {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 0.3; }
+        }
+        .damage-overlay {
+            @apply fixed inset-0 bg-red-600 pointer-events-none;
+            animation: pulse-red 0.5s ease-out;
+        }
+
+        .floating {
+            animation: floating 3s ease-in-out infinite;
+        }
+        @keyframes floating {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+    </style>
+</head>
+<body class="bg-[#0f172a] text-white min-h-screen overflow-hidden">
+
+    <script src="/socket.io/socket.io.js"></script>
+    <div id="lobby-container" class="relative min-h-screen p-8 flex flex-col items-center justify-center">
+        <div class="duel-card max-w-2xl w-full">
+            <div class="flex justify-between items-center mb-8 border-b border-slate-800 pb-6">
+                <h1 class="text-3xl font-black text-indigo-500 uppercase tracking-tighter">Duel Lobby</h1>
+                <a href="/" class="text-xs text-slate-500 hover:text-white transition uppercase font-mono tracking-widest">[ESC] Leave Lobby</a>
+            </div>
+            
+            <div class="mb-8">
+                <h3 class="text-sm font-mono text-indigo-400 mb-4 uppercase tracking-widest">Active Guardians</h3>
+                <div id="user-list" class="space-y-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
+                    <!-- Users will appear here -->
+                    <div class="text-slate-600 italic text-sm">Searching for other time travelers...</div>
+                </div>
+            </div>
+
+            <div class="p-6 bg-indigo-500/10 rounded-2xl border border-indigo-500/20">
+                <p class="text-xs text-slate-400 font-mono text-center uppercase tracking-widest">Wait for a challenge or select a traveler to duel</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Incoming Challenge Modal -->
+    <div id="challenge-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-950/90 backdrop-blur-xl">
+        <div class="duel-card max-w-sm w-full text-center p-10 animate-in fade-in zoom-in duration-300">
+            <div class="text-6xl mb-6">⚔️</div>
+            <h2 class="text-2xl font-black mb-2">New Challenge!</h2>
+            <p id="challenger-text" class="text-slate-400 mb-8"></p>
+            <div class="flex gap-4">
+                <button onclick="acceptChallenge()" class="flex-1 py-4 bg-indigo-600 hover:bg-indigo-700 rounded-xl font-black transition-all">ACCEPT</button>
+                <button onclick="closeChallenge()" class="flex-1 py-4 bg-slate-800 hover:bg-slate-700 rounded-xl font-black transition-all">DECLINE</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-container" class="relative min-h-screen p-8 flex flex-col hidden">
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-12">
+            <div class="text-indigo-400 font-bold flex items-center gap-2">
+                <span class="mono">ROOM:</span> <span id="match-id" class="text-white">...</span>
+            </div>
+            <div class="text-center">
+                <h1 class="text-2xl font-black tracking-widest uppercase text-indigo-500">Time Duel</h1>
+                <p class="text-xs font-mono text-slate-500">PROTOCOL: LIVE_SYNC</p>
+            </div>
+            <div class="text-right">
+                <div id="winner-tag" class="hidden font-black text-emerald-400 animate-pulse uppercase tracking-widest">VICTORY</div>
+            </div>
+        </header>
+
+        <!-- Battle Arena -->
+        <div class="flex-grow flex flex-col md:flex-row items-center justify-around gap-12 relative lg:px-20">
+            
+            <!-- Player -->
+            <div class="w-full max-w-xs space-y-6 text-center">
+                <div class="relative inline-block">
+                    <div id="p1-avatar" class="w-24 h-24 bg-indigo-600 rounded-2xl flex items-center justify-center text-5xl shadow-[0_0_50px_rgba(79,70,229,0.4)] relative z-10 transition-all duration-500">🦸‍♂️</div>
+                    <div class="absolute -inset-4 bg-indigo-500/20 blur-xl rounded-full"></div>
+                </div>
+                <div>
+                    <h3 id="p1-name" class="font-black text-xl mb-3">You</h3>
+                    <div class="hp-bar">
+                        <div id="p1-hp-bar" class="hp-fill bg-indigo-500" style="width: 100%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VS Center -->
+            <div class="relative z-10 flex flex-col items-center">
+                <div id="v1-orb" class="w-48 h-48 bg-white/5 border-2 border-indigo-500/30 rounded-full flex flex-col items-center justify-center backdrop-blur-xl floating shadow-[0_0_100px_rgba(79,70,229,0.2)]">
+                    <span class="text-xs font-black text-indigo-500/60 mb-2 mono">TASK</span>
+                    <span id="base-verb" class="text-4xl font-black tracking-tighter uppercase text-white">READY?</span>
+                </div>
+                <div class="mt-8">
+                    <input type="text" id="answer-input" placeholder="Type V3 Form..." 
+                           class="bg-slate-800/50 border-2 border-indigo-500/50 rounded-2xl px-6 py-4 text-xl font-bold text-center outline-none focus:border-indigo-400 focus:bg-slate-800 transition-all w-64 placeholder:text-slate-600"
+                           autocomplete="off">
+                </div>
+            </div>
+
+            <!-- Rival -->
+            <div class="w-full max-w-xs space-y-6 text-center">
+                <div class="relative inline-block">
+                    <div id="p2-avatar" class="w-24 h-24 bg-rose-600 rounded-2xl flex items-center justify-center text-5xl shadow-[0_0_50px_rgba(225,29,72,0.4)] relative z-10 transition-all duration-500">👨‍🚀</div>
+                    <div class="absolute -inset-4 bg-rose-500/20 blur-xl rounded-full"></div>
+                </div>
+                <div>
+                    <h3 id="p2-name" class="font-black text-xl mb-3">Opponent</h3>
+                    <div class="hp-bar">
+                        <div id="p2-hp-bar" class="hp-fill bg-rose-500" style="width: 100%"></div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Victory Modal -->
+    <div id="victory-modal" class="fixed inset-0 z-50 items-center justify-center bg-indigo-950/90 backdrop-blur-3xl hidden">
+        <div class="text-center max-w-lg p-12 duel-card border-indigo-500">
+            <div class="text-9xl mb-10 animate-bounce">🏆</div>
+            <h2 id="end-title" class="text-5xl font-black mb-4 tracking-tighter uppercase"></h2>
+            <p id="end-text" class="text-xl text-indigo-200 mb-10 font-medium italic"></p>
+            <button onclick="location.reload()" class="w-full py-6 bg-white text-indigo-900 rounded-3xl font-black text-2xl hover:scale-105 transition-all">LOBBY</button>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        const username = localStorage.getItem('username') || `Traveler_${Math.floor(Math.random()*1000)}`;
+        
+        let myId = null;
+        let opponentId = null;
+        let p1Data = null;
+        let p2Data = null;
+        let challengerId = null;
+
+        // Elements
+        const lobbyContainer = document.getElementById('lobby-container');
+        const gameContainer = document.getElementById('game-container');
+        const userList = document.getElementById('user-list');
+        const challengeModal = document.getElementById('challenge-modal');
+        const input = document.getElementById('answer-input');
+
+        // Initialize
+        socket.emit('join_lobby', username);
+
+        socket.on('connect', () => {
+            myId = socket.id;
+        });
+
+        socket.on('online_users', (users) => {
+            userList.innerHTML = users
+                .filter(u => u.id !== socket.id)
+                .map(u => `
+                    <div class="flex items-center justify-between p-4 bg-slate-800/40 rounded-xl border border-slate-700/50 group hover:border-indigo-500/50 transition-all">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-indigo-500/20 rounded-lg flex items-center justify-center text-xl">👤</div>
+                            <span class="font-bold text-slate-200">${u.username}</span>
+                        </div>
+                        <button onclick="challenge('${u.id}')" class="px-4 py-2 bg-indigo-600 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-indigo-500 transition-colors">Challenge</button>
+                    </div>
+                `).join('') || '<div class="text-slate-600 italic text-sm text-center py-4">No other travelers online right now...</div>';
+        });
+
+        function challenge(id) {
+            socket.emit('challenge', id);
+            alert('Challenge sent!');
+        }
+
+        socket.on('challenge_received', (data) => {
+            challengerId = data.fromId;
+            document.getElementById('challenger-text').textContent = `${data.fromName} wants to duel!`;
+            challengeModal.classList.remove('hidden');
+            challengeModal.classList.add('flex');
+        });
+
+        function acceptChallenge() {
+            socket.emit('accept_challenge', challengerId);
+            challengeModal.classList.add('hidden');
+        }
+
+        function closeChallenge() {
+            challengeModal.classList.add('hidden');
+        }
+
+        socket.on('match_start', (data) => {
+            lobbyContainer.classList.add('hidden');
+            gameContainer.classList.remove('hidden');
+            document.getElementById('match-id').textContent = data.matchId;
+            
+            p1Data = data.p1;
+            p2Data = data.p2;
+
+            document.getElementById('p1-name').textContent = p1Data.username;
+            document.getElementById('p2-name').textContent = p2Data.username;
+            
+            p1Id = p1Data.id;
+            p2Id = p2Data.id;
+
+            input.value = "";
+            input.focus();
+        });
+
+        socket.on('new_verb', (v1) => {
+            document.getElementById('base-verb').textContent = v1;
+            input.value = "";
+            input.focus();
+        });
+
+        input.addEventListener('input', (e) => {
+            const val = e.target.value.trim();
+            if (val !== "") {
+                socket.emit('submit_answer', val);
+            }
+        });
+
+        socket.on('match_update', (data) => {
+            const p1 = data.p1;
+            const p2 = data.p2;
+
+            document.getElementById('p1-hp-bar').style.width = p1.hp + "%";
+            document.getElementById('p2-hp-bar').style.width = p2.hp + "%";
+
+            // Damage effect
+            if (data.winner !== socket.id) {
+                document.getElementById('p1-avatar').classList.add('scale-90', 'opacity-50');
+                setTimeout(() => document.getElementById('p1-avatar').classList.remove('scale-90', 'opacity-50'), 200);
+            } else {
+                document.getElementById('p2-avatar').classList.add('scale-90', 'opacity-50');
+                setTimeout(() => document.getElementById('p2-avatar').classList.remove('scale-90', 'opacity-50'), 200);
+            }
+        });
+
+        socket.on('match_end', (data) => {
+            const modal = document.getElementById('victory-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            document.getElementById('end-title').textContent = data.winner === username ? "VICTORY!" : "DEFEAT!";
+            document.getElementById('end-text').textContent = data.winner === username ? 
+                "You secured the timeline with your faster reflexes." : 
+                "The timeline was altered. Better luck next time.";
+        });
+    </script>
+</body>
+</html>
+</body>
+</html>

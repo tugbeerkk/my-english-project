@@ -1,0 +1,228 @@
+<!-- /public/unit9.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unit 9: Hero Maker - Simplify Mission</title>
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap');
+        body { font-family: 'Outfit', sans-serif; }
+        .hero-card { @apply bg-white p-8 rounded-[3rem] shadow-xl border-b-8 border-indigo-100 transition-all; }
+        .btn-choice { @apply w-full p-4 bg-indigo-50 border-2 border-indigo-100 rounded-2xl text-left font-bold hover:border-indigo-500 hover:bg-white transition active:scale-95 text-indigo-900; }
+        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); }
+    </style>
+</head>
+<body class="bg-indigo-50 min-h-screen p-4 flex flex-col items-center">
+
+    <div class="max-w-3xl w-full">
+        <header class="flex justify-between items-center mb-8">
+            <a href="/" class="text-indigo-600 font-bold">← Back</a>
+            <div class="flex gap-4">
+                <div class="bg-white px-4 py-2 rounded-xl border border-indigo-100 font-black text-indigo-600 text-sm">SCORE: <span id="score">0</span></div>
+                <div class="bg-white px-4 py-2 rounded-xl border border-indigo-100 font-black text-rose-500 text-sm">LIFE: <span id="lives">3</span></div>
+            </div>
+        </header>
+
+        <!-- Start Screen -->
+        <div id="intro" class="hero-card text-center py-16">
+            <div class="text-9xl mb-8">🦸‍♂️</div>
+            <h1 class="text-5xl font-black text-indigo-900 mb-4">HERO MAKER</h1>
+            <p class="text-slate-500 text-lg mb-10 max-w-md mx-auto">The world has problems. You have the hero. Pick the right tools and words to save the planet!</p>
+            <button onclick="startGame()" class="bg-indigo-600 text-white px-12 py-5 rounded-3xl font-black text-xl shadow-lg hover:bg-indigo-700 transition">START MISSION 🚀</button>
+        </div>
+
+        <!-- Game Area -->
+        <div id="game" class="hidden space-y-6">
+            <div class="hero-card">
+                <div class="flex items-center gap-4 mb-8">
+                    <div id="problem-emoji" class="text-5xl p-4 bg-indigo-50 rounded-3xl">🌍</div>
+                    <div>
+                        <h2 id="problem-name" class="text-2xl font-black text-indigo-900">Global Warming</h2>
+                        <p class="text-indigo-400 font-bold text-sm tracking-widest uppercase">Mission Target</p>
+                    </div>
+                </div>
+
+                <div id="task-container" class="space-y-6">
+                    <!-- Steps will appear here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feedback Modal -->
+    <div id="modal" class="modal items-center justify-center">
+        <div class="bg-white p-10 rounded-[3rem] max-w-sm w-full text-center shadow-2xl mx-4">
+            <div id="modal-icon" class="text-7xl mb-4">✨</div>
+            <h3 id="modal-title" class="text-3xl font-black text-indigo-900 mb-2">Great!</h3>
+            <p id="modal-text" class="text-slate-500 mb-8">You chose correctly.</p>
+            <button id="modal-btn" onclick="closeModal()" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black">NEXT</button>
+        </div>
+    </div>
+
+    <script>
+        let score = 0;
+        let lives = 3;
+        let missionIdx = 0;
+        let step = 1; // 1: Tool, 2: Grammar
+
+        const missions = [
+            {
+                problem: "Ocean Pollution",
+                emoji: "🌊",
+                step1: {
+                    q: "The oceans are full of plastic. What tool does the hero need?",
+                    o: ["A Water Purifier", "A Fire Extinguisher", "A Solar Panel"],
+                    a: 0,
+                    icon: "🧼"
+                },
+                step2: {
+                    q: "Complete the hero's power sentence:",
+                    s: "If I _______ a giant purifier, I _______ the whole ocean.",
+                    o: ["have / will clean", "had / would clean", "had / cleaned"],
+                    a: 1
+                }
+            },
+            {
+                problem: "Climate Change",
+                emoji: "🔥",
+                step1: {
+                    q: "The planet is getting too hot. What is the best solution?",
+                    o: ["Building more cars", "Planting super trees", "Buying more food"],
+                    a: 1,
+                    icon: "🌳"
+                },
+                step2: {
+                    q: "Complete the hero's rule:",
+                    s: "We must plant trees because the air is _______ dirty to breathe.",
+                    o: ["enough", "too", "so"],
+                    a: 1
+                }
+            },
+            {
+                problem: "Energy Crisis",
+                emoji: "💡",
+                step1: {
+                    q: "We are running out of electricity! What should the hero use?",
+                    o: ["Coal Power", "Solar Mirrors", "A Big Battery"],
+                    a: 1,
+                    icon: "☀️"
+                },
+                step2: {
+                    q: "Complete the wish sentence:",
+                    s: "The city is dark. I wish we _______ more solar energy right now.",
+                    o: ["have", "had", "will have"],
+                    a: 1
+                }
+            }
+        ];
+
+        function startGame() {
+            document.getElementById('intro').classList.add('hidden');
+            document.getElementById('game').classList.remove('hidden');
+            renderMission();
+        }
+
+        function renderMission() {
+            const m = missions[missionIdx];
+            document.getElementById('problem-name').textContent = m.problem;
+            document.getElementById('problem-emoji').textContent = m.emoji;
+            
+            const container = document.getElementById('task-container');
+            
+            if (step === 1) {
+                container.innerHTML = `
+                    <p class="text-slate-400 font-bold text-xs uppercase mb-4">Step 1: Choose the Tool</p>
+                    <p class="text-xl font-bold text-slate-800 mb-6">${m.step1.q}</p>
+                    <div class="grid gap-3">
+                        ${m.step1.o.map((opt, i) => `<button onclick="checkStep1(${i})" class="btn-choice">${opt}</button>`).join('')}
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <p class="text-slate-400 font-bold text-xs uppercase mb-4">Step 2: Power Up Grammar</p>
+                    <p class="text-xl font-bold text-slate-800 mb-2">${m.step2.q}</p>
+                    <div class="bg-indigo-50 p-6 rounded-2xl border-2 border-indigo-100 mb-6 italic font-medium">
+                        "${m.step2.s.replace('_______', '_____')}"
+                    </div>
+                    <div class="grid gap-3">
+                        ${m.step2.o.map((opt, i) => `<button onclick="checkStep2(${i})" class="btn-choice">${opt}</button>`).join('')}
+                    </div>
+                `;
+            }
+        }
+
+        function checkStep1(idx) {
+            const m = missions[missionIdx];
+            if (idx === m.step1.a) {
+                score += 50;
+                step = 2;
+                showModal("Great Choice!", "That is the perfect tool for this problem. Now, prepare the sentence!", "🛠️");
+            } else {
+                wrong();
+            }
+        }
+
+        function checkStep2(idx) {
+            const m = missions[missionIdx];
+            if (idx === m.step2.a) {
+                score += 100;
+                step = 1;
+                missionIdx++;
+                if (missionIdx >= missions.length) {
+                    victory();
+                } else {
+                    showModal("Mission Success!", "The hero saved the day with perfect grammar!", "🌟");
+                }
+            } else {
+                wrong();
+            }
+        }
+
+        function wrong() {
+            lives--;
+            document.getElementById('lives').textContent = lives;
+            if (lives <= 0) {
+                showModal("Mission Failed", "The disaster was too big. Game over!", "💀", true);
+            } else {
+                showModal("Try Again!", "The hero needs better instructions. Try one more time.", "⚠️");
+            }
+        }
+
+        function showModal(title, text, icon, isDead = false) {
+            const modal = document.getElementById('modal');
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-text').textContent = text;
+            document.getElementById('modal-icon').textContent = icon;
+            
+            const btn = document.getElementById('modal-btn');
+            if (isDead) {
+                btn.textContent = "RESTART";
+                btn.onclick = () => location.reload();
+            } else {
+                btn.textContent = "CONTINUE";
+                btn.onclick = () => {
+                    modal.style.display = 'none';
+                    renderMission();
+                };
+            }
+            
+            modal.style.display = 'flex';
+            document.getElementById('score').textContent = score;
+        }
+
+        function victory() {
+            document.getElementById('game').innerHTML = `
+                <div class="hero-card text-center py-16">
+                    <div class="text-9xl mb-8">🏆</div>
+                    <h2 class="text-5xl font-black text-indigo-900 mb-4">WORLD SAVED!</h2>
+                    <p class="text-slate-500 text-xl font-medium mb-10">You are a Master Hero Maker. Every problem was solved with perfect English.</p>
+                    <p class="text-3xl font-black text-indigo-600 mb-10">Final Score: ${score}</p>
+                    <button onclick="location.reload()" class="bg-indigo-600 text-white px-12 py-5 rounded-3xl font-black">PLAY AGAIN</button>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

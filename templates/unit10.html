@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unit 10: Shopping Quest - The Smartest Buyer</title>
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;600;900&display=swap');
+        body { font-family: 'Outfit', sans-serif; }
+        .pink-panel {
+            @apply bg-white rounded-[3rem] shadow-2xl border-4 border-pink-100 overflow-hidden relative;
+        }
+        .item-card {
+            @apply p-6 bg-pink-50 border-2 border-pink-100 rounded-[2rem] transition-all hover:scale-105 hover:bg-white active:scale-95 cursor-pointer;
+        }
+        .item-card.selected {
+            @apply border-pink-500 bg-white ring-4 ring-pink-100;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(80, 7, 36, 0.6);
+            backdrop-filter: blur(12px);
+        }
+    </style>
+</head>
+<body class="bg-stone-50 min-h-screen p-4">
+
+    <div class="max-w-5xl mx-auto">
+        <header class="flex justify-between items-center mb-8">
+            <a href="/" class="text-pink-600 font-bold hover:underline flex items-center gap-2">
+                <span>←</span> English Lab
+            </a>
+            <div class="flex gap-4">
+                <div class="bg-white px-6 py-2 rounded-2xl shadow-sm border border-pink-100 flex items-center gap-3">
+                    <span class="text-pink-500 font-black">BUDGET</span>
+                    <span id="budget" class="font-black text-pink-600">$500</span>
+                </div>
+                <div class="bg-white px-6 py-2 rounded-2xl shadow-sm border border-pink-100 flex items-center gap-3">
+                    <span class="text-rose-500 font-black">XP: <span id="xp" class="text-rose-600">0</span></span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Intro Screen -->
+        <div id="screen-intro" class="pink-panel p-16 text-center">
+            <div class="w-32 h-32 bg-pink-600 rounded-full flex items-center justify-center text-6xl mx-auto mb-8 shadow-pink-200 shadow-2xl">🛍️</div>
+            <h1 class="text-5xl font-black text-pink-900 mb-6 uppercase tracking-tighter">The Smartest Buyer</h1>
+            <p class="text-pink-800 text-xl font-medium max-w-2xl mx-auto mb-10 leading-relaxed italic">
+                "Welcome to Efe's Digital Boutique! 👗 You are not a seller, you are a master shopper. Find the best deals using comparatives, deliver packages fast with adverbs, and bargain with the shopkeeper!"
+            </p>
+            <button onclick="startGame()" class="bg-pink-600 text-white px-16 py-6 rounded-[2.5rem] font-black text-2xl shadow-xl shadow-pink-100 hover:bg-pink-700 transition active:scale-95">ENTER BOUTIQUE 🛒</button>
+        </div>
+
+        <!-- Main Game Content -->
+        <main id="game-main" class="hidden space-y-8">
+            <div class="pink-panel p-10 bg-gradient-to-br from-pink-50 to-white">
+                <div id="game-title-area" class="text-center mb-10">
+                    <span class="bg-pink-600 text-white px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest mb-2 inline-block" id="current-mode">Battle of the Labels</span>
+                    <h2 class="text-3xl font-black text-pink-900" id="task-title">The Perfect Choice</h2>
+                </div>
+
+                <div id="game-arena" class="min-h-[400px]">
+                    <!-- Dynamic content -->
+                </div>
+            </div>
+
+            <!-- Hint Panel -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-white p-6 rounded-[2rem] border-2 border-pink-100">
+                    <h4 class="text-xs font-black text-pink-400 uppercase tracking-widest mb-3">Grammar Tip: Comparatives</h4>
+                    <p class="text-sm text-pink-800 font-medium">Use <strong>-er</strong> for short words (cheaper) and <strong>more</strong> for long words (more expensive).</p>
+                </div>
+                <div class="bg-white p-6 rounded-[2rem] border-2 border-emerald-100">
+                    <h4 class="text-xs font-black text-emerald-400 uppercase tracking-widest mb-3">Grammar Tip: Superlatives</h4>
+                    <p class="text-sm text-emerald-800 font-medium">Use <strong>the -est</strong> or <strong>the most</strong> when comparing 3+ things.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Feedback Modal -->
+    <div id="modal" class="modal flex items-center justify-center p-4">
+        <div class="bg-white rounded-[3rem] p-12 max-w-md w-full text-center shadow-2xl border-b-8 border-pink-200">
+            <div id="modal-icon" class="text-8xl mb-6">🎁</div>
+            <h2 id="modal-title" class="text-3xl font-black text-pink-900 mb-2">Well Done!</h2>
+            <p id="modal-text" class="text-pink-500 text-lg mb-8 italic font-medium"></p>
+            <button id="modal-btn" onclick="closeModal()" class="w-full py-5 bg-pink-900 text-white rounded-2xl font-black text-xl hover:bg-black transition active:scale-95">NEXT TASK</button>
+        </div>
+    </div>
+
+    <script>
+        let xp = 0;
+        let budget = 500;
+        let mode = 0; // 0: Labels, 1: Adverb Dash, 2: Haggle
+        let taskIdx = 0;
+
+        const labelMissions = [
+            {
+                request: "Efe says: 'I need the most comfortable shoes, but they must be cheaper than $100.'",
+                items: [
+                    { name: "Running Shoes", price: 120, comfort: 10, icon: "👟" },
+                    { name: "Casual Shoes", price: 80, comfort: 8, icon: "👞" },
+                    { name: "Basic Shoes", price: 40, comfort: 4, icon: "👟" }
+                ],
+                correct: 1
+            },
+            {
+                request: "Efe says: 'Find me the most expensive dress that is more stylish than the casual one.'",
+                items: [
+                    { name: "Party Dress", price: 200, style: 10, icon: "👗" },
+                    { name: "Blue Dress", price: 150, style: 7, icon: "👗" },
+                    { name: "Casual Dress", price: 50, style: 3, icon: "👗" }
+                ],
+                correct: 0
+            }
+        ];
+
+        const adverbTasks = [
+            {
+                q: "To get a 5-star rating, you must deliver this package _______ (quick) than the other courier.",
+                o: ["more quickly", "quicklier", "the quickest"],
+                a: 0
+            },
+            {
+                q: "Your drone flies _______ (high) of all the delivery machines in the boutique.",
+                o: ["the highest", "higher", "the most high"],
+                a: 0
+            }
+        ];
+
+        const haggleTasks = [
+            {
+                item: "Golden Watch",
+                price: 300,
+                target: 200,
+                q: "The shopkeeper asks for $300. You say: 'This watch is _______ (expensive) than the silver one in the other shop!'",
+                o: ["too expensive", "more expensive", "expensive enough"],
+                a: 1
+            },
+            {
+                item: "Silk Scarf",
+                price: 100,
+                target: 70,
+                q: "You argue: 'This scarf is not _______ (soft) for this high price!'",
+                o: ["soft enough", "too soft", "softer"],
+                a: 0
+            }
+        ];
+
+        function startGame() {
+            document.getElementById('screen-intro').classList.add('hidden');
+            document.getElementById('game-main').classList.remove('hidden');
+            loadMode();
+        }
+
+        function loadMode() {
+            if (mode === 0) loadLabels();
+            else if (mode === 1) loadAdverbDash();
+            else if (mode === 2) loadHaggle();
+        }
+
+        function loadLabels() {
+            const m = labelMissions[taskIdx];
+            document.getElementById('current-mode').textContent = "Battle of the Labels";
+            document.getElementById('task-title').textContent = "Comparative Analysis";
+            const arena = document.getElementById('game-arena');
+            
+            arena.innerHTML = `
+                <div class="max-w-2xl mx-auto">
+                    <div class="bg-pink-900 text-white p-8 rounded-[2rem] shadow-xl mb-12 text-center italic font-bold">
+                        "${m.request}"
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        ${m.items.map((item, i) => `
+                            <div class="item-card text-center" onclick="checkLabel(${i})">
+                                <div class="text-5xl mb-4">${item.icon}</div>
+                                <h3 class="font-black text-pink-900 text-lg">${item.name}</h3>
+                                <p class="text-pink-500 font-bold">$${item.price}</p>
+                                <div class="mt-2 text-xs font-black text-pink-300 uppercase">${item.comfort ? 'Comfort: '+item.comfort : 'Style: '+item.style}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function checkLabel(idx) {
+            if (idx === labelMissions[taskIdx].correct) {
+                xp += 50;
+                budget -= labelMissions[taskIdx].items[idx].price;
+                showModal("Smart Buy!", "You calculated the values perfectly. Efe is happy!", "💳");
+            } else {
+                showModal("Bad Deal!", "That item doesn't fit the request. You wasted money! -10 XP", "💸");
+                xp = Math.max(0, xp - 10);
+            }
+            updateStats();
+        }
+
+        function loadAdverbDash() {
+            const t = adverbTasks[taskIdx];
+            document.getElementById('current-mode').textContent = "The Adverb Dash";
+            document.getElementById('task-title').textContent = "Delivery Precision";
+            const arena = document.getElementById('game-arena');
+
+            arena.innerHTML = `
+                <div class="max-w-xl mx-auto text-center">
+                    <div class="text-8xl mb-8 animate-bounce">🚚</div>
+                    <div class="bg-white p-8 rounded-[2rem] border-2 border-pink-100 mb-8 shadow-inner">
+                        <p class="text-xl font-bold text-pink-900">${t.q.replace('_______', '<span class=\"text-pink-600 underline\">_______</span>')}</p>
+                    </div>
+                    <div class="grid grid-cols-1 gap-3">
+                        ${t.o.map((opt, i) => `
+                            <button onclick="checkAdverb(${i})" class="w-full p-4 bg-white border-2 border-pink-100 rounded-2xl font-bold hover:bg-pink-600 hover:text-white transition">
+                                ${opt}
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function checkAdverb(idx) {
+            if (idx === adverbTasks[taskIdx].a) {
+                xp += 50;
+                showModal("Fast & Accurate!", "The customer gave a 5-star rating!", "⭐");
+            } else {
+                showModal("Delayed!", "Grammar error slowed down the delivery.", "🐢");
+            }
+            updateStats();
+        }
+
+        function loadHaggle() {
+            const h = haggleTasks[taskIdx];
+            document.getElementById('current-mode').textContent = "The Thrift Shop Haggle";
+            document.getElementById('task-title').textContent = "Grammar Bargaining";
+            const arena = document.getElementById('game-arena');
+
+            arena.innerHTML = `
+                <div class="max-w-xl mx-auto text-center">
+                    <div class="flex items-center justify-center gap-8 mb-8">
+                        <div class="text-7xl">🧔</div>
+                        <div class="text-4xl">↔️</div>
+                        <div class="text-7xl">🤠</div>
+                    </div>
+                    <div class="bg-stone-100 p-8 rounded-[2.5rem] border-2 border-stone-200 mb-8 italic font-medium text-stone-700">
+                        "${h.q.replace('_______', '<span class=\"text-stone-900 font-black underline\">_______</span>')}"
+                    </div>
+                    <div class="grid grid-cols-1 gap-3">
+                        ${h.o.map((opt, i) => `
+                            <button onclick="checkHaggle(${i})" class="w-full p-4 bg-stone-800 text-white rounded-2xl font-bold hover:bg-black transition">
+                                ${opt}
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function checkHaggle(idx) {
+            const h = haggleTasks[taskIdx];
+            if (idx === h.a) {
+                xp += 100;
+                budget += (h.price - h.target);
+                showModal("Price Dropped!", "The shopkeeper is impressed with your grammar. Discounts applied!", "🤝");
+            } else {
+                showModal("No Discount!", "The shopkeeper didn't understand your argument.", "🏷️");
+            }
+            updateStats();
+        }
+
+        function updateStats() {
+            document.getElementById('xp').textContent = xp;
+            document.getElementById('budget').textContent = `$${budget}`;
+        }
+
+        function showModal(title, text, icon) {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-text').textContent = text;
+            document.getElementById('modal-icon').textContent = icon;
+            document.getElementById('modal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('modal').style.display = 'none';
+            taskIdx++;
+            
+            const currentTasks = mode === 0 ? labelMissions : (mode === 1 ? adverbTasks : haggleTasks);
+            
+            if (taskIdx >= currentTasks.length) {
+                taskIdx = 0;
+                mode++;
+                if (mode > 2) {
+                    victory();
+                    return;
+                }
+            }
+            loadMode();
+        }
+
+        function victory() {
+            document.getElementById('game-main').innerHTML = `
+                <div class="pink-panel p-20 text-center">
+                    <div class="text-9xl mb-10 animate-bounce">🏆</div>
+                    <h2 class="text-6xl font-black text-pink-900 mb-6 uppercase tracking-tighter">SMARTEST BUYER!</h2>
+                    <p class="text-2xl text-pink-800 mb-10 font-medium italic">"Efe and the Digital Boutique are safe. You mastered comparatives, superlatives, and bargain logic. You are truly the queen/king of the mall!"</p>
+                    <div class="flex justify-center gap-10 text-3xl font-black text-pink-600 mb-12">
+                        <span>Final XP: ${xp}</span>
+                        <span>Wallet: $${budget}</span>
+                    </div>
+                    <button onclick="location.reload()" class="bg-pink-900 text-white px-16 py-6 rounded-[2.5rem] font-black text-2xl shadow-xl hover:scale-105 transition">RE-SHOP EXPERIENCE</button>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

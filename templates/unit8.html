@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unit 8: Cyber Quest - Digital World</title>
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap');
+        
+        body { font-family: 'Space Grotesk', sans-serif; }
+        
+        .cyber-panel {
+            @apply bg-white rounded-[3rem] shadow-2xl border-b-8 border-pink-200 overflow-hidden relative;
+        }
+        .matrix-bg {
+            background: linear-gradient(rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.9)), 
+                        url('https://www.transparenttextures.com/patterns/carbon-fibre.png');
+        }
+        .net-btn {
+            @apply p-4 bg-pink-50 border-2 border-pink-100 rounded-2xl font-bold text-pink-700 text-left transition hover:border-pink-500 hover:bg-pink-100 active:scale-95 shadow-sm;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 50;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 192, 203, 0.4);
+            backdrop-filter: blur(10px);
+        }
+        @keyframes scan {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(1000%); }
+        }
+        .scanline {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: rgba(236, 72, 153, 0.2);
+            animation: scan 4s linear infinite;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="bg-pink-50 min-h-screen p-4">
+
+    <div class="max-w-4xl mx-auto relative">
+        <div class="scanline"></div>
+        <header class="flex justify-between items-center mb-8">
+            <a href="/" class="text-pink-600 font-bold hover:underline flex items-center gap-2">
+                <span>←</span> 10th Grade Dashboard
+            </a>
+            <div class="flex gap-4">
+                <div class="bg-white px-6 py-2 rounded-2xl shadow-sm border border-pink-100 flex items-center gap-3">
+                    <span class="text-pink-500 font-black tracking-tighter">BIT-SCORE</span>
+                    <span id="score" class="font-black text-pink-600">0</span>
+                </div>
+                <div class="bg-white px-6 py-2 rounded-2xl shadow-sm border border-pink-100 flex items-center gap-3">
+                    <span class="text-pink-400 font-black">UPS: <span id="lives" class="text-pink-600">3</span></span>
+                </div>
+            </div>
+        </header>
+
+        <!-- INTRO SCREEN -->
+        <div id="screen-intro" class="cyber-panel p-12 text-center flex flex-col items-center">
+            <div class="w-32 h-32 bg-pink-600 rounded-full flex items-center justify-center text-6xl mb-8 shadow-pink-200 shadow-2xl animate-pulse">👩‍💻</div>
+            <h1 class="text-5xl font-black text-pink-900 mb-6 tracking-tighter uppercase">Cyber Quest</h1>
+            <div class="max-w-lg bg-pink-50 p-8 rounded-[2.5rem] border-2 border-pink-100 mb-8 text-lg text-pink-800 leading-relaxed font-medium">
+                "Welcome to the Digital World! 🌐 You need to become a smart internet user. To win this quest, you must define digital tools, learn about technology, and be polite online. Be careful, don't let your system crash!"
+            </div>
+            <button onclick="startGame()" class="px-12 py-5 bg-pink-600 text-white rounded-3xl font-black text-2xl shadow-xl shadow-pink-200 border-b-8 border-pink-800 hover:bg-pink-700 transition active:translate-y-1 active:border-b-0">BOOT SYSTEM 🚀</button>
+        </div>
+
+        <!-- MAIN GAME PANEL -->
+        <main id="game-main" class="cyber-panel p-8 hidden matrix-bg min-h-[500px]">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-10 pb-6 border-b-2 border-pink-50 gap-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-16 h-16 bg-pink-100 rounded-2xl flex items-center justify-center text-3xl font-black text-pink-600" id="level-badge">1</div>
+                    <div>
+                        <h2 class="text-2xl font-black text-pink-900 leading-none" id="level-title">Definition Mission</h2>
+                        <span class="text-pink-400 text-sm font-bold uppercase tracking-widest" id="level-subtitle">Relative Clauses</span>
+                    </div>
+                </div>
+                <div id="system-msg" class="bg-pink-900 text-pink-100 px-4 py-2 rounded-xl text-xs font-mono animate-pulse">SYSTEM: STABLE_V1.0</div>
+            </div>
+
+            <div id="game-arena" class="space-y-8">
+                <!-- Content Injected Here -->
+            </div>
+
+            <!-- Progress -->
+            <div class="mt-12 overflow-hidden">
+                <div class="flex justify-between text-[10px] font-black text-pink-300 uppercase tracking-tighter mb-2">
+                    <span>Signal Strength</span>
+                    <span id="progress-percent">0%</span>
+                </div>
+                <div class="h-4 bg-pink-50 rounded-full p-1 border border-pink-100">
+                    <div id="progress-bar" class="h-full bg-gradient-to-r from-pink-400 to-rose-600 rounded-full transition-all duration-700" style="width: 0%"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Feedback Modal -->
+    <div id="modal" class="modal flex items-center justify-center">
+        <div class="bg-white rounded-[3rem] p-10 max-w-md w-full shadow-2xl mx-4 text-center border-b-8 border-pink-200 relative overflow-hidden">
+            <div id="modal-icon" class="text-7xl mb-6">✅</div>
+            <h3 id="modal-title" class="text-3xl font-black text-pink-900 mb-2">Access Granted</h3>
+            <p id="modal-text" class="text-pink-500 font-medium mb-8">System data synchronized successfully.</p>
+            <button id="modal-btn" onclick="next()" class="w-full py-5 bg-pink-600 text-white rounded-2xl font-black text-xl shadow-lg hover:bg-pink-700 transition active:scale-95">CONTINUE QUEST</button>
+        </div>
+    </div>
+
+    <script>
+        let score = 0;
+        let lives = 3;
+        let cLevel = 0;
+        let cTaskIdx = 0;
+
+        const levels = [
+            {
+                title: "Information Mission",
+                sub: "Who, Which, where",
+                tasks: [
+                    { type: 'mc', q: "A hacker is a person _______ steals secret information from computers.", o: ["which", "who", "where"], a: 1, info: "For people, use 'who'." },
+                    { type: 'mc', q: "Instagram is a social media app _______ you can share photos.", o: ["when", "where", "which"], a: 1, info: "For places, use 'where'." },
+                    { type: 'mc', q: "A smartphone is a device _______ allows you to access the web.", o: ["who", "which", "when"], a: 1, info: "For things, use 'which'." }
+                ]
+            },
+            {
+                title: "Adjective Mission",
+                sub: "So & Such",
+                tasks: [
+                    { type: 'mc', q: "The website was _______ slow that I closed the tab.", o: ["so", "such", "such a"], a: 0, info: "Use 'So' + Adjective (slow)." },
+                    { type: 'mc', q: "It was _______ an addictive game that he played all night.", o: ["so", "such", "very"], a: 1, info: "Use 'Such a' + Noun (game)." },
+                    { type: 'mc', q: "The VR headset had _______ realistic graphics that I felt like I was there.", o: ["so", "such", "such a"], a: 1, info: "Use 'Such' + Adjective + Plural Noun (graphics)." }
+                ]
+            },
+            {
+                title: "Online Manners",
+                sub: "Internet Rules",
+                tasks: [
+                    { type: 'mc', q: "In an email, the acronym 'ASAP' stands for _______.", o: ["Always Stay At Peace", "As Soon As Possible", "Always Send A Post"], a: 1 },
+                    { type: 'mc', q: "Writing in ALL CAPITAL LETTERS in a chat is considered _______.", o: ["Polite", "Shouting", "Very Professional"], a: 1 },
+                    { type: 'mc', q: "Before sharing someone's photo online, you should _______.", o: ["Tag them", "Ask for permission", "Edit it first"], a: 1 }
+                ]
+            }
+        ];
+
+        function startGame() {
+            document.getElementById('screen-intro').classList.add('hidden');
+            document.getElementById('game-main').classList.remove('hidden');
+            renderTask();
+        }
+
+        function renderTask() {
+            const level = levels[cLevel];
+            const task = level.tasks[cTaskIdx];
+            const arena = document.getElementById('game-arena');
+            
+            document.getElementById('level-badge').textContent = cLevel + 1;
+            document.getElementById('level-title').textContent = level.title;
+            document.getElementById('level-subtitle').textContent = level.sub;
+
+            arena.innerHTML = `
+                <div class="max-w-lg mx-auto">
+                    <p class="text-pink-400 font-black text-xs uppercase mb-4 tracking-tighter">Signal Code: TASK_0${cTaskIdx+1}</p>
+                    <div class="bg-pink-50 p-8 rounded-3xl border-2 border-pink-100 shadow-inner mb-8">
+                        <p class="text-2xl font-bold text-pink-900 leading-snug">
+                            ${task.q.replace('_______', '<span class="text-pink-600 underline decoration-4 decoration-pink-200">_______</span>')}
+                        </p>
+                    </div>
+                    <div class="grid grid-cols-1 gap-4">
+                        ${task.o.map((opt, i) => `
+                            <button onclick="check(${i})" class="net-btn group">
+                                <span class="bg-white w-8 h-8 rounded-lg inline-flex items-center justify-center mr-4 group-hover:bg-pink-600 group-hover:text-white transition font-black text-xs">${String.fromCharCode(65 + i)}</span>
+                                ${opt}
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            updateProgress();
+        }
+
+        function check(idx) {
+            const task = levels[cLevel].tasks[cTaskIdx];
+            const modal = document.getElementById('modal');
+            const icon = document.getElementById('modal-icon');
+            const title = document.getElementById('modal-title');
+            const text = document.getElementById('modal-text');
+            const btn = document.getElementById('modal-btn');
+
+            if (idx === task.a) {
+                score += 50;
+                icon.textContent = "✅";
+                title.textContent = "Safe Connection";
+                text.textContent = task.info || "You followed the internet rules correctly!";
+                btn.textContent = "NEXT TASK";
+                document.getElementById('system-msg').textContent = "SYSTEM: DATA_OK";
+                document.getElementById('system-msg').className = "bg-green-600 text-white px-4 py-2 rounded-xl text-xs font-mono";
+            } else {
+                lives--;
+                score = Math.max(0, score - 20);
+                icon.textContent = "⚠️";
+                title.textContent = "System Error";
+                text.textContent = "That is not a safe choice. Be careful!";
+                btn.textContent = "TRY AGAIN";
+                document.getElementById('system-msg').textContent = "SYSTEM: ERROR";
+                document.getElementById('system-msg').className = "bg-red-600 text-white px-4 py-2 rounded-xl text-xs font-mono animate-bounce";
+            }
+
+            document.getElementById('score').textContent = score;
+            document.getElementById('lives').textContent = lives;
+            modal.style.display = 'flex';
+
+            if (lives <= 0) {
+                gameOver();
+            }
+        }
+
+        function next() {
+            document.getElementById('modal').style.display = 'none';
+            if (lives <= 0) return;
+            
+            cTaskIdx++;
+            if (cTaskIdx >= levels[cLevel].tasks.length) {
+                if (cLevel < levels.length - 1) {
+                    cLevel++;
+                    cTaskIdx = 0;
+                } else {
+                    victory();
+                    return;
+                }
+            }
+            renderTask();
+        }
+
+        function updateProgress() {
+            const total = levels.reduce((acc, l) => acc + l.tasks.length, 0);
+            const current = cLevel * 3 + cTaskIdx;
+            const pct = (current / total) * 100;
+            document.getElementById('progress-bar').style.width = pct + "%";
+            document.getElementById('progress-percent').textContent = Math.round(pct) + "%";
+        }
+
+        function victory() {
+            const arena = document.getElementById('game-arena');
+            document.getElementById('progress-bar').style.width = "100%";
+            document.getElementById('progress-percent').textContent = "100%";
+            
+            arena.innerHTML = `
+                <div class="text-center py-8">
+                    <div class="text-9xl mb-8 animate-bounce">🥇</div>
+                    <h2 class="text-4xl font-black text-pink-900 mb-4">CYBER MASTER!</h2>
+                    <div class="p-8 bg-pink-100 rounded-[3rem] border-4 border-white shadow-xl mb-10 max-w-lg mx-auto">
+                        <p class="text-xl text-pink-800 font-bold italic leading-relaxed">
+                            "You finished the quest! Now you are a smart and safe internet user. You know how to define digital tools and you are polite to others online. Great job, digital pioneer!"
+                        </p>
+                    </div>
+                    <p class="text-3xl font-black text-pink-600 mb-8">Final Score: ${score}</p>
+                    <button onclick="location.reload()" class="bg-pink-900 text-white px-12 py-5 rounded-3xl font-black text-xl shadow-2xl hover:scale-105 transition">PLAY AGAIN</button>
+                </div>
+            `;
+        }
+
+        function gameOver() {
+            document.getElementById('modal-btn').textContent = "REBOOT SYSTEM";
+            document.getElementById('modal-btn').onclick = () => location.reload();
+            document.getElementById('modal-title').textContent = "SYSTEM CRASH";
+            document.getElementById('modal-text').textContent = "Firewall destroyed. Your digital footprint has faded.";
+        }
+    </script>
+</body>
+</html>

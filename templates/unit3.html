@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unit 3: The Case of the Missing Diamond</title>
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <style>
+        .suspect-card {
+            @apply bg-white p-6 rounded-2xl border-2 border-gray-100 shadow-sm transition-all cursor-pointer hover:border-blue-500 hover:shadow-md active:scale-95;
+        }
+        .suspect-card.selected {
+            @apply border-blue-600 ring-4 ring-blue-50;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 min-h-screen text-slate-100 p-4 font-sans">
+    <div class="max-w-3xl mx-auto">
+        <a href="/" class="text-slate-400 font-medium mb-8 inline-block hover:text-white transition">← 10th grade English platform</a>
+
+        <!-- Game Container -->
+        <div id="game-container" class="bg-white text-slate-900 rounded-3xl shadow-2xl overflow-hidden min-h-[500px] flex flex-col">
+            
+            <!-- Context Bar -->
+            <div id="status-bar" class="bg-slate-100 px-8 py-4 flex justify-between items-center border-b border-slate-200">
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl">🕵️</span>
+                    <span class="font-bold text-slate-700 uppercase tracking-wider text-sm">Case 104: The Diamond Theft</span>
+                </div>
+                <div id="clues-found" class="flex gap-2">
+                    <!-- Clues appear here -->
+                </div>
+            </div>
+
+            <!-- Intro Screen -->
+            <div id="screen-intro" class="p-12 text-center flex-grow flex flex-col justify-center">
+                <div class="text-7xl mb-6">💎</div>
+                <h1 class="text-4xl font-black mb-4">The Case of the Missing Diamond</h1>
+                <p class="text-slate-500 text-lg mb-10 max-w-lg mx-auto">Last night at 8:00 PM, a rare diamond was stolen from the museum. We have three suspects. Find the grammatical lies to catch the thief!</p>
+                <button onclick="startInterrogation()" class="bg-slate-900 text-white px-12 py-4 rounded-2xl font-bold text-xl hover:bg-slate-800 transition active:scale-95 shadow-xl shadow-slate-200">Start Interrogation</button>
+            </div>
+
+            <!-- Interrogation Screen -->
+            <div id="screen-interrogation" class="hidden p-8">
+                <header class="mb-8 flex justify-between items-center">
+                    <div>
+                        <h2 class="text-2xl font-bold text-blue-900">Interrogation Room</h2>
+                        <p class="text-slate-500 italic">"What were you doing at 8:00 PM yesterday?"</p>
+                    </div>
+                    <div id="timer" class="text-3xl font-black text-red-600 bg-red-50 px-4 py-2 rounded-xl border-2 border-red-100">20s</div>
+                </header>
+
+                <div id="suspects-list" class="grid grid-cols-1 gap-4 mb-10">
+                    <!-- Suspect cards injected here -->
+                </div>
+
+                <div id="feedback" class="hidden p-4 rounded-xl font-bold text-center mb-4"></div>
+            </div>
+
+            <!-- Lineup Screen -->
+            <div id="screen-lineup" class="hidden p-8 text-center flex-grow flex flex-col justify-center">
+                <h2 class="text-3xl font-black mb-2 text-red-600">POLICE LINE-UP</h2>
+                <p class="text-slate-500 mb-8">Match your clues with the suspect. Who is the thief?</p>
+                
+                <div id="lineup-grid" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+                    <!-- Final suspects here -->
+                </div>
+            </div>
+
+            <!-- Victory Screen -->
+            <div id="screen-victory" class="hidden p-12 text-center">
+                <div class="text-7xl mb-6">🚔</div>
+                <h2 class="text-4xl font-black mb-4">CASE CLOSED!</h2>
+                <p id="victory-text" class="text-slate-500 text-lg mb-10"></p>
+                <button onclick="location.reload()" class="bg-green-600 text-white px-12 py-4 rounded-2xl font-bold text-xl">New Case</button>
+            </div>
+            
+            <!-- Failure Screen -->
+            <div id="screen-failure" class="hidden p-12 text-center text-red-600">
+                <div class="text-7xl mb-6">💨</div>
+                <h2 class="text-4xl font-black mb-4">SUSPECT ESCAPED!</h2>
+                <p class="text-slate-500 text-lg mb-10">You identified the wrong person or failed the interrogation.</p>
+                <button onclick="location.reload()" class="bg-slate-900 text-white px-12 py-4 rounded-2xl font-bold text-xl">Try Again</button>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const alibiLibrary = {
+            correct: [
+                "I was watching TV when the lights went out.",
+                "While I was cooking, my husband set the table.",
+                "At 8:00 PM, I was driving home from work.",
+                "I was reading a book when I heard the siren.",
+                "I didn't see anything; I was playing chess at the club.",
+                "While they were arguing, I left the room quietly.",
+                "I was listening to music when the alarm went off."
+            ],
+            incorrect: [
+                { s: "I was watch TV when the lights went out.", e: "Continuous form missing '-ing'" },
+                { s: "I watched TV when the lights were going out.", e: "Incorrect use of Simple vs Continuous" },
+                { s: "While I was cook, my cat jumped on the table.", e: "Missing '-ing' after 'was'" },
+                { s: "I was having a shower when the phone was ringing.", e: "Both actions cannot be continuous here" },
+                { s: "What did you doing at 8 PM yesterday?", e: "Auxiliary verb mismatch" },
+                { s: "I was go to the market when it started to rain.", e: "Verb form error" },
+                { s: "She was sung while I was playing the guitar.", e: "Used Past Participle instead of '-ing'" }
+            ]
+        };
+
+        const physicalTraits = {
+            hats: [
+                { val: "Red Hat", emoji: "🧢", style: "text-red-500" },
+                { val: "Black Hat", emoji: "🎩", style: "text-black" },
+                { val: "No Hat", emoji: "✖️", style: "text-gray-400" }
+            ],
+            facial: [
+                { val: "Mustache", emoji: "👨‍🦰", trait: "Mustache" },
+                { val: "Beard", emoji: "🧔", trait: "Beard" },
+                { val: "Clean-shaven", emoji: "🧒", trait: "No facial hair" }
+            ]
+        };
+
+        const lineupPool = [
+            { id: 1, hat: "Red Hat", facial: "Mustache", emoji: "👮‍♂️" },
+            { id: 2, hat: "Red Hat", facial: "Beard", emoji: "🎅" },
+            { id: 3, hat: "Red Hat", facial: "Clean-shaven", emoji: "🧑‍🚒" },
+            { id: 4, hat: "Black Hat", facial: "Mustache", emoji: "👨‍✈️" },
+            { id: 5, hat: "Black Hat", facial: "Beard", emoji: "🧙‍♂️" },
+            { id: 6, hat: "Black Hat", facial: "Clean-shaven", emoji: "🕴️" },
+            { id: 7, hat: "No Hat", facial: "Mustache", emoji: "👨‍💼" },
+            { id: 8, hat: "No Hat", facial: "Beard", emoji: "🧔‍♂️" },
+            { id: 9, hat: "No Hat", facial: "Clean-shaven", emoji: "🧑‍🎓" }
+        ];
+
+        let currentCase = {
+            thief: null,
+            interrogation: [],
+            cluesFound: 0
+        };
+
+        let timeLeft = 20;
+        let timerInterval;
+
+        function generateCase() {
+            // 1. Pick a thief
+            const thiefIndex = Math.floor(Math.random() * lineupPool.length);
+            currentCase.thief = lineupPool[thiefIndex];
+            currentCase.cluesFound = 0;
+            document.getElementById('clues-found').innerHTML = '';
+
+            // 2. Prepare alibis
+            const correct = alibiLibrary.correct[Math.floor(Math.random() * alibiLibrary.correct.length)];
+            const bad1 = alibiLibrary.incorrect[Math.floor(Math.random() * alibiLibrary.incorrect.length)];
+            let bad2 = alibiLibrary.incorrect[Math.floor(Math.random() * alibiLibrary.incorrect.length)];
+            while(bad2 === bad1) bad2 = alibiLibrary.incorrect[Math.floor(Math.random() * alibiLibrary.incorrect.length)];
+
+            const interrogation = [
+                { name: "Suspect A", statement: "", isCorrect: true, hint: null },
+                { name: "Suspect B", statement: "", isCorrect: false, hint: `The thief has a ${currentCase.thief.facial}.`, emoji: "🔍" },
+                { name: "Suspect C", statement: "", isCorrect: false, hint: `The thief is wearing a ${currentCase.thief.hat}.`, emoji: "📢" }
+            ];
+
+            // Assign statements
+            interrogation[0].statement = correct;
+            interrogation[1].statement = bad1.s;
+            interrogation[2].statement = bad2.s;
+
+            // Shuffle them
+            currentCase.interrogation = interrogation.sort(() => Math.random() - 0.5);
+            // Rename after shuffle
+            currentCase.interrogation.forEach((s, i) => s.name = `Suspect ${String.fromCharCode(65 + i)}`);
+        }
+
+        function showScreen(id) {
+            ['screen-intro', 'screen-interrogation', 'screen-lineup', 'screen-victory', 'screen-failure'].forEach(s => {
+                const el = document.getElementById(s);
+                if(el) el.classList.add('hidden');
+            });
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function startInterrogation() {
+            generateCase();
+            showScreen('screen-interrogation');
+            const list = document.getElementById('suspects-list');
+            list.innerHTML = '';
+            
+            // Start Timer
+            timeLeft = 20;
+            document.getElementById('timer').textContent = timeLeft + 's';
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('timer').textContent = timeLeft + 's';
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    alert("Time's up! You must identify the suspect now!");
+                    goToLineup();
+                }
+            }, 1000);
+
+            currentCase.interrogation.forEach((s, i) => {
+                const card = document.createElement('div');
+                card.className = "suspect-card";
+                card.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-blue-600">${s.name}</span>
+                        <span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded">ALIBI STATEMENT</span>
+                    </div>
+                    <p class="mt-4 text-xl font-medium">"${s.statement}"</p>
+                `;
+                card.onclick = () => checkStatement(i, card);
+                list.appendChild(card);
+            });
+        }
+
+        function checkStatement(idx, card) {
+            const data = currentCase.interrogation[idx];
+            const feedback = document.getElementById('feedback');
+            
+            if (data.solved) return;
+
+            if (data.isCorrect) {
+                feedback.textContent = "Error! You interrogated an innocent person. Now identify the suspect with the clues you have!";
+                feedback.className = "p-4 rounded-xl font-bold text-center mb-4 bg-red-100 text-red-600 block";
+                
+                setTimeout(() => {
+                    goToLineup();
+                }, 1500);
+            } else {
+                data.solved = true;
+                feedback.textContent = `Grammar Lie Detected! Clue Found: ${data.hint}`;
+                feedback.className = "p-4 rounded-xl font-bold text-center mb-4 bg-green-100 text-green-700 block animate-pulse";
+                card.classList.add('border-green-500', 'bg-green-50', 'pointer-events-none');
+                
+                currentCase.cluesFound++;
+                addClueUI(data.emoji);
+                
+                if (currentCase.cluesFound === 2) {
+                    setTimeout(goToLineup, 2000);
+                }
+            }
+        }
+
+        function addClueUI(emoji) {
+            const bar = document.getElementById('clues-found');
+            const clue = document.createElement('div');
+            clue.className = "w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center text-xl shadow-lg border-2 border-white animate-bounce";
+            clue.textContent = emoji || "🔍";
+            bar.appendChild(clue);
+        }
+
+        function goToLineup() {
+            clearInterval(timerInterval);
+            showScreen('screen-lineup');
+            const grid = document.getElementById('lineup-grid');
+            grid.innerHTML = '';
+            
+            // Pick 3 random innocents + the actual thief
+            let lineup = lineupPool.filter(s => s.id !== currentCase.thief.id);
+            lineup = lineup.sort(() => Math.random() - 0.5).slice(0, 3);
+            lineup.push(currentCase.thief);
+            lineup = lineup.sort(() => Math.random() - 0.5);
+            
+            lineup.forEach(s => {
+                const card = document.createElement('div');
+                card.className = "bg-slate-50 p-6 rounded-2xl border-2 border-slate-100 cursor-pointer hover:border-red-600 hover:shadow-xl transition-all flex flex-col items-center shadow-sm";
+                card.innerHTML = `
+                    <div class="text-6xl mb-4">${s.emoji}</div>
+                    <div class="text-xs font-black text-slate-400 uppercase mb-2 tracking-tighter">Suspect Profile</div>
+                    <div class="text-sm font-bold text-slate-800 text-center">${s.hat}, ${s.facial}</div>
+                `;
+                card.onclick = () => {
+                    if (s.id === currentCase.thief.id) {
+                        showScreen('screen-victory');
+                        document.getElementById('victory-text').textContent = `Excellent work, Detective! You spotted the grammatical lies and correctly identified the thief: The one with a ${s.facial} and a ${s.hat}.`;
+                    } else {
+                        showScreen('screen-failure');
+                    }
+                };
+                grid.appendChild(card);
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unit 5: Travel Quest</title>
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <style>
+        #game-canvas {
+            background-color: #e0f2fe; /* sky blue */
+            border: 4px solid #0369a1;
+            border-radius: 1.5rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 50;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.6);
+            backdrop-filter: blur(8px);
+        }
+        .unlocked-node {
+            animation: pulse-ring 2s infinite;
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.5; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="bg-sky-50 min-h-screen flex flex-col items-center p-4 font-sans text-slate-800">
+
+    <div class="max-w-5xl w-full">
+        <header class="flex justify-between items-center mb-6">
+            <a href="/" class="text-sky-700 font-bold hover:underline">← 10th grade English platform</a>
+            <div class="flex gap-3">
+                <div class="bg-white px-6 py-2 rounded-2xl shadow-sm border border-sky-100 flex items-center gap-3">
+                    <span class="text-xl">💰</span>
+                    <span id="money" class="font-black text-sky-600">0</span>
+                </div>
+                <div class="bg-white px-6 py-2 rounded-2xl shadow-sm border border-sky-100 flex items-center gap-3">
+                    <span class="text-xl">📍</span>
+                    <span id="visited-count" class="font-black text-slate-600">0/5</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="bg-white p-6 rounded-[2.5rem] shadow-2xl relative overflow-hidden flex flex-col items-center border border-sky-100">
+            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-sky-400 to-blue-600"></div>
+            
+            <div class="w-full flex justify-between items-end mb-4 px-4">
+                <div>
+                    <h1 class="text-3xl font-black text-sky-900">Travel Quest</h1>
+                    <p class="text-slate-500 font-medium">Explore the world, plan your trips, and master Unit 5!</p>
+                </div>
+                <div class="text-right text-xs font-bold text-slate-400">
+                    MOVE: WASD | ACTION: WALK TO CITY
+                </div>
+            </div>
+
+            <div class="relative group">
+                <canvas id="game-canvas" width="800" height="500"></canvas>
+                <div id="interaction-hint" class="hidden absolute bottom-4 left-1/2 -translate-x-1/2 bg-sky-900 text-white px-4 py-2 rounded-full text-xs font-bold animate-bounce">
+                    STAY HERE TO START TRIP ✈️
+                </div>
+            </div>
+
+            <div class="mt-6 w-full grid grid-cols-4 gap-4" id="city-status-list">
+                <!-- City status badges -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Question Modal -->
+    <div id="question-modal" class="modal flex items-center justify-center">
+        <div class="bg-white rounded-[2rem] p-10 max-w-lg w-full shadow-2xl mx-4 border-4 border-sky-50">
+            <div class="flex items-center gap-4 mb-8">
+                <div class="w-16 h-16 bg-sky-100 rounded-2xl flex items-center justify-center text-3xl" id="modal-city-emoji">🏨</div>
+                <div>
+                    <h2 class="text-2xl font-black text-slate-900" id="modal-city-name">Hotel Reservation</h2>
+                    <p class="text-sky-500 font-bold text-sm tracking-wide uppercase" id="modal-category">Travel Grammar</p>
+                </div>
+            </div>
+
+            <div class="p-6 bg-slate-50 rounded-2xl border-2 border-slate-100 mb-8">
+                <p class="text-xl font-bold text-slate-700 leading-relaxed" id="question-text">Loading...</p>
+            </div>
+
+            <div class="grid grid-cols-1 gap-3" id="options-container">
+                <!-- Options -->
+            </div>
+
+            <div id="feedback" class="mt-6 hidden p-4 rounded-xl font-bold text-center"></div>
+        </div>
+    </div>
+
+    <!-- Level Complete Modal -->
+    <div id="completion-modal" class="modal flex items-center justify-center">
+        <div class="bg-white rounded-[3rem] p-12 max-w-md w-full shadow-2xl mx-4 text-center">
+            <div class="text-8xl mb-8">🚢</div>
+            <h2 class="text-4xl font-black text-slate-900 mb-4">World Traveler!</h2>
+            <p class="text-slate-500 text-lg mb-8">You have successfully planned trips to all major cities and mastered Present Perfect!</p>
+            <div class="bg-sky-50 p-8 rounded-[2rem] mb-8">
+                <span class="text-sm font-bold text-sky-400 uppercase tracking-widest">Total Savings</span>
+                <div class="text-6xl font-black text-sky-600" id="final-money">0</div>
+            </div>
+            <button onclick="location.reload()" class="bg-sky-600 text-white px-10 py-5 rounded-2xl font-bold text-xl w-full shadow-lg hover:bg-sky-700 transition active:scale-95">Plan New Trips</button>
+        </div>
+    </div>
+
+    <!-- Error Modal (Missed Flight) -->
+    <div id="error-modal" class="modal flex items-center justify-center">
+        <div class="bg-white rounded-[2rem] p-10 max-w-sm w-full shadow-2xl mx-4 text-center">
+            <div class="text-6xl mb-4">❌✈️</div>
+            <h2 class="text-2xl font-black text-red-600 mb-2">Flight Cancelled!</h2>
+            <p class="text-slate-500 mb-6">Incorrect planning leads to missed flights. Try again!</p>
+            <button onclick="closeModals()" class="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold w-full">Continue Exploration</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const moneyEl = document.getElementById('money');
+        const visitedCountEl = document.getElementById('visited-count');
+        const questionModal = document.getElementById('question-modal');
+        const completionModal = document.getElementById('completion-modal');
+        const errorModal = document.getElementById('error-modal');
+        const hintEl = document.getElementById('interaction-hint');
+
+        let money = 0;
+        let visitedCount = 0;
+        let isModalOpen = false;
+
+        const player = {
+            x: 400,
+            y: 250,
+            size: 24,
+            speed: 5,
+            color: '#0369a1'
+        };
+
+        const cities = [
+            { name: "Paris", x: 150, y: 150, emoji: "🗼", cost: 0, unlocked: true, visited: false, 
+              questions: [
+                { q: "You ___ a hotel room in Paris.", o: ["have booked", "booked", "booking"], a: 0, cat: "Present Perfect" },
+                { q: "Paris is a ___ holiday destination.", o: ["beach", "cultural", "winter"], a: 1, cat: "Holiday Types" }
+              ] 
+            },
+            { name: "Tokyo", x: 650, y: 180, emoji: "⛩️", cost: 50, unlocked: false, visited: false,
+              questions: [
+                { q: "You have visited Tokyo, ___?", o: ["haven't you", "don't you", "didn't you"], a: 0, cat: "Question Tags" },
+                { q: "I have ___ been to Japan before.", o: ["ever", "never", "yet"], a: 1, cat: "Present Perfect" }
+              ]
+            },
+            { name: "Antalya", x: 350, y: 280, emoji: "🏖️", cost: 20, unlocked: false, visited: false,
+              questions: [
+                { q: "This is a ___ holiday where you swim.", o: ["camping", "beach holiday", "cruise"], a: 1, cat: "Vocabulary" },
+                { q: "We ___ sunbathed all day.", o: ["have", "did", "are"], a: 0, cat: "Present Perfect" }
+              ]
+            },
+            { name: "New York", x: 100, y: 350, emoji: "🗽", cost: 100, unlocked: false, visited: false,
+              questions: [
+                { q: "___ you ever seen the Statue of Liberty?", o: ["Do", "Are", "Have"], a: 2, cat: "Grammar" },
+                { q: "She has already ___ her flight.", o: ["check", "checked", "checking"], a: 1, cat: "Present Perfect" }
+              ]
+            },
+            { name: "Sydney", x: 700, y: 400, emoji: "🦘", cost: 150, unlocked: false, visited: false,
+              questions: [
+                { q: "They have lived here since 1990, ___?", o: ["haven't they", "aren't they", "don't they"], a: 0, cat: "Question Tags" },
+                { q: "I have ___ finished my packing.", o: ["just", "yet", "ever"], a: 0, cat: "Adverbs of Time" }
+              ]
+            }
+        ];
+
+        const keys = {};
+        window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+        window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+        function update() {
+            if (isModalOpen) return;
+
+            let nextX = player.x;
+            let nextY = player.y;
+
+            if (keys['w']) nextY -= player.speed;
+            if (keys['s']) nextY += player.speed;
+            if (keys['a']) nextX -= player.speed;
+            if (keys['d']) nextX += player.speed;
+
+            // Simple boundaries
+            if (nextX > 50 && nextX < canvas.width - 50) player.x = nextX;
+            if (nextY > 50 && nextY < canvas.height - 50) player.y = nextY;
+
+            // City collision
+            let nearCity = false;
+            cities.forEach((city, idx) => {
+                const dist = Math.hypot(player.x - city.x, player.y - city.y);
+                if (dist < 40) {
+                    nearCity = true;
+                    if (city.unlocked && !city.visited) {
+                        hintEl.classList.remove('hidden');
+                        if (keys[' ']) startTrip(idx);
+                    } else if (!city.unlocked) {
+                        hintEl.classList.remove('hidden');
+                        hintEl.textContent = `NEED $${city.cost} TO UNLOCK 🔒`;
+                        if (keys[' '] && money >= city.cost) {
+                            unlockCity(idx);
+                        }
+                    }
+                }
+            });
+            if (!nearCity) {
+                hintEl.classList.add('hidden');
+                hintEl.textContent = "STAY HERE TO START TRIP ✈️";
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Water Texture (Simple dots/waves)
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+            for(let i=0; i<canvas.width; i+=100) {
+                for(let j=0; j<canvas.height; j+=100) {
+                    ctx.fillText("~", i + (Date.now()/50)%20, j);
+                }
+            }
+
+            // Draw Continents (Abstract Circles)
+            ctx.fillStyle = '#f0fdf4'; // Greenish land
+            ctx.beginPath(); ctx.arc(150, 150, 80, 0, Math.PI*2); ctx.fill(); // Europe
+            ctx.beginPath(); ctx.arc(600, 200, 120, 0, Math.PI*2); ctx.fill(); // Asia/Oceania
+            ctx.beginPath(); ctx.arc(150, 380, 70, 0, Math.PI*2); ctx.fill(); // Americas
+
+            // Draw Cities
+            cities.forEach(city => {
+                ctx.save();
+                ctx.translate(city.x, city.y);
+                
+                // Shadow
+                ctx.fillStyle = 'rgba(0,0,0,0.1)';
+                ctx.beginPath(); ctx.ellipse(0, 15, 15, 5, 0, 0, Math.PI*2); ctx.fill();
+
+                if (city.visited) {
+                    ctx.fillStyle = '#10b981'; // Green for visited
+                } else if (city.unlocked) {
+                    ctx.fillStyle = '#f59e0b'; // Amber for unlocked
+                    // Pulse ring
+                    ctx.strokeStyle = 'rgba(245, 158, 11, 0.3)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.arc(0, 0, 25 + Math.sin(Date.now()/200)*5, 0, Math.PI*2); ctx.stroke();
+                } else {
+                    ctx.fillStyle = '#94a3b8'; // Slate for locked
+                }
+
+                ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = 'white';
+                ctx.font = '20px serif';
+                ctx.fillText(city.unlocked ? city.emoji : "🔒", -12, 8);
+
+                // Label
+                ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                ctx.font = 'bold 10px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(city.name.toUpperCase(), 0, -25);
+                
+                ctx.restore();
+            });
+
+            // Draw Player
+            ctx.save();
+            ctx.translate(player.x, player.y);
+            // Character base
+            ctx.fillStyle = player.color;
+            ctx.beginPath(); ctx.arc(0, 0, player.size/2, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = 'white'; ctx.lineWidth = 3; ctx.stroke();
+            // Character look
+            ctx.fillStyle = 'white';
+            ctx.font = '14px sans-serif';
+            ctx.fillText("🧑‍✈️", -9, 5);
+            ctx.restore();
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        let currentCityIdx = -1;
+        let currentQuestionIdx = 0;
+
+        function startTrip(idx) {
+            isModalOpen = true;
+            currentCityIdx = idx;
+            currentQuestionIdx = 0;
+            showQuestion();
+        }
+
+        function unlockCity(idx) {
+            money -= cities[idx].cost;
+            cities[idx].unlocked = true;
+            moneyEl.textContent = money;
+            updateCityList();
+            hintEl.textContent = "CITY UNLOCKED! ✈️";
+        }
+
+        function showQuestion() {
+            const city = cities[currentCityIdx];
+            const q = city.questions[currentQuestionIdx];
+            
+            document.getElementById('modal-city-name').textContent = city.name + " Trip Plan";
+            document.getElementById('modal-city-emoji').textContent = city.emoji;
+            document.getElementById('modal-category').textContent = q.cat;
+            document.getElementById('question-text').textContent = q.q;
+            
+            const container = document.getElementById('options-container');
+            container.innerHTML = '';
+            
+            q.o.forEach((opt, oIdx) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl text-left font-bold hover:border-sky-500 hover:bg-sky-50 transition active:scale-95 text-slate-700 shadow-sm";
+                btn.textContent = opt;
+                btn.onclick = () => checkAnswer(oIdx);
+                container.appendChild(btn);
+            });
+
+            questionModal.style.display = 'flex';
+        }
+
+        function checkAnswer(oIdx) {
+            const city = cities[currentCityIdx];
+            const q = city.questions[currentQuestionIdx];
+            const feedback = document.getElementById('feedback');
+            feedback.classList.remove('hidden');
+
+            if (oIdx === q.a) {
+                feedback.textContent = "Trip point secured! +$50 💰";
+                feedback.className = "mt-6 p-4 rounded-xl font-bold text-center bg-green-100 text-green-700";
+                money += 50;
+                moneyEl.textContent = money;
+                
+                currentQuestionIdx++;
+                if (currentQuestionIdx >= city.questions.length) {
+                    setTimeout(() => {
+                        city.visited = true;
+                        visitedCount++;
+                        visitedCountEl.textContent = `${visitedCount}/${cities.length}`;
+                        closeModals();
+                        updateCityList();
+                        if (visitedCount === cities.length) showCompletion();
+                    }, 1500);
+                } else {
+                    setTimeout(() => {
+                        feedback.classList.add('hidden');
+                        showQuestion();
+                    }, 1500);
+                }
+            } else {
+                feedback.textContent = "Wrong detail! Connection flight missed! 🛫";
+                feedback.className = "mt-6 p-4 rounded-xl font-bold text-center bg-red-100 text-red-700";
+                setTimeout(() => {
+                    closeModals();
+                    errorModal.style.display = 'flex';
+                }, 1500);
+            }
+        }
+
+        function closeModals() {
+            questionModal.style.display = 'none';
+            errorModal.style.display = 'none';
+            isModalOpen = false;
+        }
+
+        function updateCityList() {
+            const list = document.getElementById('city-status-list');
+            list.innerHTML = '';
+            cities.forEach(c => {
+                const badge = document.createElement('div');
+                badge.className = `p-3 rounded-xl border flex items-center justify-between font-bold text-xs ${c.visited ? 'bg-green-50 border-green-200 text-green-700' : (c.unlocked ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-slate-50 border-slate-200 text-slate-400')}`;
+                badge.innerHTML = `<span>${c.emoji} ${c.name}</span> <span>${c.visited ? '✓' : (c.unlocked ? '$0' : '$'+c.cost)}</span>`;
+                list.appendChild(badge);
+            });
+        }
+
+        function showCompletion() {
+            document.getElementById('final-money').textContent = "$" + money;
+            completionModal.style.display = 'flex';
+        }
+
+        updateCityList();
+        gameLoop();
+    </script>
+</body>
+</html>

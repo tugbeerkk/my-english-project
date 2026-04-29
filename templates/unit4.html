@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unit 4: The Future Explorer</title>
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <style>
+        #game-canvas {
+            background-color: #f0fdf4; /* light green */
+            border: 4px solid #166534;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 50;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+        }
+    </style>
+</head>
+<body class="bg-green-50 min-h-screen flex flex-col items-center p-4 font-sans text-slate-800">
+    
+    <div class="max-w-4xl w-full">
+        <header class="flex justify-between items-center mb-6">
+            <a href="/" class="text-orange-700 font-bold hover:underline">← 10th grade English platform</a>
+            <div class="flex gap-4">
+                <div class="bg-white px-4 py-2 rounded-2xl shadow-sm border border-orange-100 flex items-center gap-3">
+                    <span class="text-xl">⏱️</span>
+                    <span id="timer" class="font-black text-orange-600">60s</span>
+                </div>
+                <div class="bg-white px-4 py-2 rounded-2xl shadow-sm border border-orange-100 flex items-center gap-3">
+                    <span class="text-xl">❤️</span>
+                    <span id="lives" class="font-black text-red-500">3</span>
+                </div>
+                <div class="bg-white px-6 py-2 rounded-2xl shadow-sm border border-orange-100 flex items-center gap-4">
+                    <span class="font-bold text-orange-800">Score: <span id="score">0</span></span>
+                </div>
+            </div>
+        </header>
+
+        <div class="bg-white p-4 rounded-3xl shadow-xl relative overflow-hidden flex flex-col items-center border-4 border-orange-100">
+            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-400 via-green-400 to-yellow-400"></div>
+            <h1 class="text-3xl font-black text-orange-900 mt-4 mb-2">Tradition Explorer</h1>
+            <p class="text-sm text-slate-500 mb-4 text-center px-8">Travel the world! Find <span class="text-blue-500 font-bold">Tradition Points</span> and answer questions about world cultures, "used to", and civilizations.(Note: Played using WASD and arrow keys.)</p>
+            
+            <div class="relative">
+                <canvas id="game-canvas" width="700" height="450" class="bg-blue-50"></canvas>
+            </div>
+
+            <div class="mt-6 flex flex-wrap justify-center gap-6 text-xs font-bold text-slate-400">
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 bg-orange-500 rounded-full border-2 border-white shadow-sm"></div> Player
+                </div>
+                <div class="flex items-center gap-2 text-blue-600">
+                    <div class="w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow-sm"></div> Tradition Point
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 bg-green-200 rounded-lg"></div> Grass (Safe)
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 bg-yellow-100 rounded-lg"></div> Desert (Safe)
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Question Modal -->
+    <div id="question-modal" class="modal flex items-center justify-center">
+        <div class="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl mx-4 border-8 border-blue-50">
+            <div class="flex justify-between items-start mb-6">
+                <div>
+                    <h2 class="text-2xl font-black text-slate-900" id="modal-title">Cultural Discovery</h2>
+                    <p class="text-blue-500 font-bold text-sm" id="modal-category">History & Traditions</p>
+                </div>
+                <div class="text-4xl" id="modal-icon">🌍</div>
+            </div>
+            
+            <p class="text-lg font-medium text-slate-700 mb-8 p-4 bg-slate-50 rounded-2xl border-2 border-slate-100 italic" id="question-text">Loading...</p>
+            
+            <div class="grid grid-cols-1 gap-3" id="options-container">
+                <!-- Options -->
+            </div>
+            
+            <div id="feedback" class="mt-6 hidden p-4 rounded-xl font-bold text-center"></div>
+        </div>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div id="end-modal" class="modal flex items-center justify-center">
+        <div class="bg-white rounded-3xl p-10 max-w-md w-full shadow-2xl mx-4 text-center border-b-8 border-orange-500">
+            <div class="text-8xl mb-6" id="end-emoji">🏛️</div>
+            <h2 class="text-4xl font-black text-slate-900 mb-4" id="end-title">Exploration Ended!</h2>
+            <p class="text-slate-500 text-lg mb-8" id="end-message">You traveled far, but the journey must pause.</p>
+            <div class="bg-orange-50 p-6 rounded-2xl mb-8">
+                <span class="text-sm font-bold text-orange-400 uppercase tracking-widest">Final Score</span>
+                <div class="text-6xl font-black text-orange-600" id="final-score">0</div>
+            </div>
+            <button onclick="location.reload()" class="bg-orange-600 text-white px-10 py-4 rounded-2xl font-bold text-xl w-full shadow-lg hover:bg-orange-700 transition active:scale-95">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+        const timerEl = document.getElementById('timer');
+        const livesEl = document.getElementById('lives');
+        const questionModal = document.getElementById('question-modal');
+        const endModal = document.getElementById('end-modal');
+
+        // Game State
+        let score = 0;
+        let lives = 3;
+        let timeLeft = 60;
+        let isGameActive = true;
+        let isModalOpen = false;
+
+        const player = {
+            x: 100,
+            y: 100,
+            size: 24,
+            speed: 5,
+            color: '#f97316' // orange-500
+        };
+
+        // Simplified World Fragments
+        const regions = [
+            { x: 0, y: 0, w: 300, h: 200, color: '#fef3c7', name: 'Europe' }, // Yellowish
+            { x: 300, y: 0, w: 400, h: 200, color: '#dcfce7', name: 'Asia' },   // Greenish
+            { x: 0, y: 200, w: 350, h: 250, color: '#ffedd5', name: 'Africa' }, // Orangeish
+            { x: 350, y: 200, w: 350, h: 250, color: '#f5f5f4', name: 'Anatolia' } // Stone
+        ];
+
+        const quests = [];
+        const questionLibrary = {
+            "Anatolia": [
+                { q: "Turkish coffee ___ be the most popular drink in Ottoman times.", o: ["used to", "use to", "is used to"], a: 0, cat: "Traditions" },
+                { q: "In Anatolia, people ___ often invite strangers for tea.", o: ["used to", "didn't used to", "use to"], a: 0, cat: "Hospitality" },
+                { q: "Karagöz and Hacivat ___ be a standard shadow play in Ramadan.", o: ["was", "used to", "using"], a: 1, cat: "Entertainment" },
+                { q: "Which symbol is common in Turkish evil eye beads?", o: ["Blue eye", "Red hand", "Green leaf"], a: 0, cat: "Culture" }
+            ],
+            "Europe": [
+                { q: "Knights in Europe ___ wear heavy armor in battles.", o: ["use to", "used to", "are used to"], a: 1, cat: "History" },
+                { q: "The Greeks ___ have many gods like Zeus and Athena.", o: ["didn't use", "use to", "used to"], a: 2, cat: "Civilizations" },
+                { q: "Roman people ___ build large amphitheaters for games.", o: ["used to", "use to", "was used to"], a: 0, cat: "Structure" }
+            ],
+            "Africa": [
+                { q: "Ancient Egyptians ___ build pyramids for their Kings.", o: ["used to", "use to", "using"], a: 0, cat: "Egypt" },
+                { q: "Tribes in the savanna ___ hunt together for survival.", o: ["used to", "didn't use to", "use to"], a: 0, cat: "Survival" },
+                { q: "Mummification ___ be an important part of death in Egypt.", o: ["used to", "is", "was used to"], a: 0, cat: "Civilizations" }
+            ],
+            "Asia": [
+                { q: "People in Ancient China ___ use silk to make expensive clothes.", o: ["used to", "use to", "using"], a: 0, cat: "Silk Road" },
+                { q: "The Samurai in Japan ___ follow a code called Bushido.", o: ["use to", "used to", "was"], a: 1, cat: "Traditions" },
+                { q: "Which system was used to send messages across Mongolia?", o: ["Internet", "Horse post", "Drones"], a: 1, cat: "History" }
+            ]
+        };
+
+        function getRegionAt(x, y) {
+            const found = regions.find(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
+            return found ? found.name : "Anatolia";
+        }
+
+        function initQuests() {
+            for (let i = 0; i < 8; i++) {
+                quests.push({
+                    x: Math.random() * (canvas.width - 100) + 50,
+                    y: Math.random() * (canvas.height - 100) + 50,
+                    size: 30,
+                    active: true
+                });
+            }
+        }
+
+        const keys = {};
+        window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+        window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+        // Timer Interval
+        const timerInterval = setInterval(() => {
+            if (!isGameActive || isModalOpen) return;
+            timeLeft--;
+            timerEl.textContent = timeLeft + 's';
+            if (timeLeft <= 0) endGame("Time's Up!", "⌛", "Your exploration time has expired.");
+        }, 1000);
+
+        function update() {
+            if (!isGameActive || isModalOpen) return;
+
+            let nextX = player.x;
+            let nextY = player.y;
+
+            if (keys['w'] || keys['arrowup']) nextY -= player.speed;
+            if (keys['s'] || keys['arrowdown']) nextY += player.speed;
+            if (keys['a'] || keys['arrowleft']) nextX -= player.speed;
+            if (keys['d'] || keys['arrowright']) nextX += player.speed;
+
+            // Boundaries
+            if (nextX < player.size/2) nextX = player.size/2;
+            if (nextX > canvas.width - player.size/2) nextX = canvas.width - player.size/2;
+            if (nextY < player.size/2) nextY = player.size/2;
+            if (nextY > canvas.height - player.size/2) nextY = canvas.height - player.size/2;
+
+            player.x = nextX;
+            player.y = nextY;
+
+            // Quest collision
+            quests.forEach((q, idx) => {
+                if (!q.active) return;
+                const dist = Math.hypot(player.x - q.x, player.y - q.y);
+                if (dist < (player.size/2 + q.size/2)) {
+                    openQuest(idx);
+                }
+            });
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw World Regions
+            regions.forEach(r => {
+                ctx.fillStyle = r.color;
+                ctx.fillRect(r.x, r.y, r.w, r.h);
+                ctx.fillStyle = 'rgba(0,0,0,0.05)';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.fillText(r.name, r.x + 10, r.y + 20);
+            });
+
+            // Draw Lines for "Continents"
+            ctx.strokeStyle = 'rgba(0,0,0,0.05)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(300, 0); ctx.lineTo(300, 200);
+            ctx.moveTo(0, 200); ctx.lineTo(canvas.width, 200);
+            ctx.moveTo(350, 200); ctx.lineTo(350, canvas.height);
+            ctx.stroke();
+
+            // Draw Quests
+            quests.forEach(q => {
+                if (!q.active) return;
+                ctx.fillStyle = '#3b82f6';
+                ctx.beginPath();
+                ctx.arc(q.x, q.y, q.size/2, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Pulsing
+                ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.arc(q.x, q.y, (q.size/2) + Math.sin(Date.now()/150)*6, 0, Math.PI * 2);
+                ctx.stroke();
+
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 16px serif';
+                ctx.fillText("?", q.x - 4, q.y + 6);
+            });
+
+            // Draw Player
+            ctx.fillStyle = player.color;
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player.size/2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            
+            // Player "Icon"
+            ctx.fillStyle = 'white';
+            ctx.font = '14px sans-serif';
+            ctx.fillText("🚶", player.x - 7, player.y + 5);
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        let currentQuestion = null;
+
+        function openQuest(idx) {
+            isModalOpen = true;
+            currentQuestIdx = idx;
+            
+            const regionName = getRegionAt(quests[idx].x, quests[idx].y);
+            const pool = questionLibrary[regionName];
+            currentQuestion = pool[Math.floor(Math.random() * pool.length)];
+            
+            document.getElementById('question-text').textContent = currentQuestion.q;
+            document.getElementById('modal-category').textContent = `${regionName}: ${currentQuestion.cat}`;
+            document.getElementById('modal-title').textContent = `${regionName} Discovery`;
+            
+            const container = document.getElementById('options-container');
+            container.innerHTML = '';
+            
+            currentQuestion.o.forEach((opt, oIdx) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-left font-bold hover:border-orange-500 hover:bg-orange-50 transition active:scale-95 text-slate-700";
+                btn.textContent = opt;
+                btn.onclick = () => checkAnswer(oIdx);
+                container.appendChild(btn);
+            });
+
+            questionModal.style.display = 'flex';
+        }
+
+        function checkAnswer(oIdx) {
+            const feedback = document.getElementById('feedback');
+            feedback.classList.remove('hidden');
+
+            if (oIdx === currentQuestion.a) {
+                feedback.textContent = "Great Discovery! +10 Points 🌍";
+                feedback.className = "mt-6 p-4 rounded-xl font-bold text-center bg-green-100 text-green-700";
+                score += 10;
+            } else {
+                feedback.textContent = "Lost your way! -5 Points & -1 Life ❤️";
+                feedback.className = "mt-6 p-4 rounded-xl font-bold text-center bg-red-100 text-red-700";
+                score = Math.max(0, score - 5);
+                lives--;
+                livesEl.textContent = lives;
+            }
+
+            scoreEl.textContent = score;
+            quests[currentQuestIdx].active = false;
+
+            // Spawn new quest if needed
+            setTimeout(() => {
+                questionModal.style.display = 'none';
+                feedback.classList.add('hidden');
+                isModalOpen = false;
+
+                if (lives <= 0) {
+                    endGame("Out of Hearts!", "💔", "Be more careful with your cultural studies.");
+                }
+
+                // Check if all quests done
+                const activeOnes = quests.filter(q => q.active);
+                if (activeOnes.length === 0) {
+                    endGame("Master Explorer!", "🤴", "You covered all major world traditions.");
+                }
+            }, 1800);
+        }
+
+        function endGame(title, emoji, message) {
+            isGameActive = false;
+            clearInterval(timerInterval);
+            document.getElementById('end-title').textContent = title;
+            document.getElementById('end-emoji').textContent = emoji;
+            document.getElementById('end-message').textContent = message;
+            document.getElementById('final-score').textContent = score;
+            endModal.style.display = 'flex';
+        }
+
+        initQuests();
+        gameLoop();
+    </script>
+
+</body>
+</html>

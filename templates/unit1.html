@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unit 1: Mixed Grammar Challenge</title>
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <style>
+        .option-btn {
+            @apply px-4 py-2 bg-white border border-gray-200 rounded-xl font-medium transition-all hover:border-blue-500 hover:bg-blue-50 active:scale-95;
+        }
+        .correct {
+            @apply border-green-500 bg-green-50 text-green-700 !important;
+        }
+        .wrong {
+            @apply border-red-500 bg-red-50 text-red-700 !important;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-2xl mx-auto p-6 mt-8">
+        <a href="/" class="text-blue-600 font-medium mb-6 inline-block hover:underline">← Back to 10th grade English platform</a>
+        
+        <div class="bg-white rounded-3xl shadow-xl p-8 border border-gray-100 overflow-hidden relative">
+            <!-- Progress Bar -->
+            <div class="absolute top-0 left-0 w-full h-2 bg-gray-100">
+                <div id="progress" class="h-full bg-blue-600 transition-all duration-500" style="width: 0%"></div>
+            </div>
+
+            <div id="game-ui">
+                <header class="mb-8">
+                    <h1 class="text-2xl font-bold text-gray-800">Unit 1: Mixed Grammar Challenge</h1>
+                    <p class="text-gray-500">Present Simple, Continuous & Past Simple (A2-B1)</p>
+                </header>
+
+                <div id="question-container" class="mb-10">
+                    <p id="sentence" class="text-xl text-gray-700 font-medium leading-relaxed mb-6"></p>
+                    <div id="options" class="grid grid-cols-1 gap-3">
+                        <!-- Options will be here -->
+                    </div>
+                </div>
+
+                <div id="feedback" class="hidden text-center p-4 rounded-2xl font-bold text-lg mb-4"></div>
+            </div>
+
+            <div id="result-ui" class="hidden text-center py-10">
+                <div class="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                </div>
+                <h2 class="text-3xl font-bold text-gray-800 mb-2">Excellent Work!</h2>
+                <p class="text-gray-500 mb-8">You've mastered the basics of Unit 1.</p>
+                <div id="score" class="text-4xl font-black text-blue-600 mb-8">0/0</div>
+                <button onclick="location.reload()" class="bg-blue-600 text-white px-8 py-3 rounded-2xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all">Try Again</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const questions = [
+            // Present Simple
+            { s: "She _______ to the gym every morning.", o: ["go", "goes", "going"], c: 1 },
+            { s: "Where _______ your parents live?", o: ["do", "does", "are"], c: 0 },
+            
+            // Present Continuous
+            { s: "Look! It _______ outside right now.", o: ["rains", "is raining", "rained"], c: 1 },
+            { s: "Why _______ you wearing a coat indoors?", o: ["are", "do", "is"], c: 0 },
+            { s: "Listen! Someone _______ the piano.", o: ["play", "plays", "is playing"], c: 2 },
+
+            // Past Simple
+            { s: "We _______ a great movie last night.", o: ["watch", "watched", "are watching"], c: 1 },
+            { s: "I _______ to London three years ago.", o: ["go", "gone", "went"], c: 2 },
+            { s: "Did you _______ your homework yesterday?", o: ["finish", "finished", "finishing"], c: 0 },
+            { s: "She _______ (not / see) me at the party.", o: ["didn't see", "doesn't see", "didn't saw"], c: 0 },
+            
+            // Mixed
+            { s: "I usually drink tea, but today I _______ coffee.", o: ["drink", "am drinking", "drank"], c: 1 }
+        ];
+
+        let currentIdx = 0;
+        let score = 0;
+
+        const sentenceEl = document.getElementById('sentence');
+        const optionsEl = document.getElementById('options');
+        const feedbackEl = document.getElementById('feedback');
+        const progressEl = document.getElementById('progress');
+        const gameUI = document.getElementById('game-ui');
+        const resultUI = document.getElementById('result-ui');
+        const scoreEl = document.getElementById('score');
+
+        function loadQuestion() {
+            if (currentIdx >= questions.length) {
+                showResults();
+                return;
+            }
+
+            feedbackEl.classList.add('hidden');
+            const q = questions[currentIdx];
+            sentenceEl.textContent = q.s;
+            optionsEl.innerHTML = '';
+            
+            q.o.forEach((opt, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.textContent = opt;
+                btn.onclick = () => checkAnswer(index, btn);
+                optionsEl.appendChild(btn);
+            });
+
+            progressEl.style.width = `${(currentIdx / questions.length) * 100}%`;
+        }
+
+        function checkAnswer(idx, btn) {
+            const correctIdx = questions[currentIdx].c;
+            const allBtns = optionsEl.querySelectorAll('button');
+            allBtns.forEach(b => b.disabled = true);
+
+            if (idx === correctIdx) {
+                btn.classList.add('correct');
+                score++;
+            } else {
+                btn.classList.add('wrong');
+                allBtns[correctIdx].classList.add('correct');
+            }
+
+            setTimeout(() => {
+                currentIdx++;
+                loadQuestion();
+            }, 1200);
+        }
+
+        function showResults() {
+            gameUI.classList.add('hidden');
+            resultUI.classList.remove('hidden');
+            progressEl.style.width = '100%';
+            scoreEl.textContent = `${score} / ${questions.length}`;
+        }
+
+        loadQuestion();
+    </script>
+</body>
+</html>

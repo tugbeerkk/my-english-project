@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unit 6: The Messy House - Logic Puzzle</title>
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <style>
+        .logic-card {
+            @apply bg-white p-6 rounded-3xl border-2 border-slate-100 shadow-sm transition-all hover:shadow-md cursor-pointer relative overflow-hidden;
+        }
+        .logic-card.solved {
+            @apply border-green-200 bg-green-50 cursor-default;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 50;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.6);
+            backdrop-filter: blur(8px);
+        }
+        .grid-cell {
+            @apply border border-slate-200 p-2 text-center text-xs font-bold h-12 flex items-center justify-center cursor-pointer hover:bg-slate-50 transition;
+        }
+        .grid-cell.marked-yes { @apply bg-green-500 text-white border-green-600 hover:bg-green-600; }
+        .grid-cell.marked-no { @apply bg-red-100 text-red-500 hover:bg-red-200; }
+    </style>
+</head>
+<body class="bg-indigo-50 min-h-screen p-4 font-sans text-slate-800">
+
+    <div class="max-w-6xl mx-auto">
+        <header class="flex justify-between items-center mb-8">
+            <a href="/" class="text-indigo-700 font-bold hover:underline">← 10th grade English platform</a>
+            <div class="bg-white px-6 py-2 rounded-2xl shadow-sm border border-indigo-100 flex items-center gap-4">
+                <span class="text-indigo-600 font-black">Score: <span id="score">0</span></span>
+                <span class="text-slate-300">|</span>
+                <span id="game-status" class="text-sm font-bold text-slate-400 italic">Start tidying up!</span>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- Left: House Map / Clue Cards -->
+            <div class="lg:col-span-2 space-y-6">
+                <div class="bg-white p-8 rounded-[3rem] shadow-xl border border-indigo-100">
+                    <h2 class="text-3xl font-black text-indigo-900 mb-2">The Messy House 🏠</h2>
+                    <p class="text-slate-500 mb-8 font-medium italic">"If you don't help, this house will never be clean!"</p>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="clue-cards-container">
+                        <!-- Clue cards -->
+                    </div>
+                </div>
+
+                <!-- Advice Correction Section -->
+                <div class="bg-orange-50 p-8 rounded-[3rem] border-2 border-orange-100 shadow-sm">
+                    <h3 class="text-xl font-bold text-orange-900 mb-4 flex items-center gap-2">
+                        <span>⚠️</span> Fix the Dangerous Advice!
+                    </h3>
+                    <div id="advice-container" class="space-y-4">
+                        <!-- Bad advice items -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Logic Grid (The Puzzle) -->
+            <div class="bg-white p-8 rounded-[3rem] shadow-xl border border-indigo-100 sticky top-4 h-fit">
+                <h3 class="text-xl font-black text-indigo-900 mb-6 text-center">Duty Roster (Puzzle)</h3>
+                <p class="text-[10px] text-slate-400 mb-4 text-center">Click once for X (No), twice for ✓ (Yes)</p>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full border-collapse">
+                        <thead>
+                            <tr>
+                                <th class="p-2 border border-slate-200"></th>
+                                <th class="p-2 border border-slate-200 text-[10px] uppercase text-indigo-500 bg-indigo-50">Ayşe</th>
+                                <th class="p-2 border border-slate-200 text-[10px] uppercase text-indigo-500 bg-indigo-50">Ali</th>
+                                <th class="p-2 border border-slate-200 text-[10px] uppercase text-indigo-500 bg-indigo-50">Elif</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="p-2 border border-slate-200 text-[10px] font-bold bg-slate-50">Kitchen</td>
+                                <td class="grid-cell" onclick="toggleCell(this)"></td>
+                                <td class="grid-cell" onclick="toggleCell(this)"></td>
+                                <td class="grid-cell" onclick="toggleCell(this)"></td>
+                            </tr>
+                            <tr>
+                                <td class="p-2 border border-slate-200 text-[10px] font-bold bg-slate-50">Laundry</td>
+                                <td class="grid-cell" onclick="toggleCell(this)"></td>
+                                <td class="grid-cell" onclick="toggleCell(this)"></td>
+                                <td class="grid-cell" onclick="toggleCell(this)"></td>
+                            </tr>
+                            <tr>
+                                <td class="p-2 border border-slate-200 text-[10px] font-bold bg-slate-50">Garden</td>
+                                <td class="grid-cell" onclick="toggleCell(this)"></td>
+                                <td class="grid-cell" onclick="toggleCell(this)"></td>
+                                <td class="grid-cell" onclick="toggleCell(this)"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-8">
+                    <button id="solve-btn" class="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl shadow-lg border-b-4 border-indigo-800 hover:bg-indigo-700 transition active:translate-y-1 active:border-b-0">
+                        SUBMIT ROSTER
+                    </button>
+                    <div id="puzzle-feedback" class="mt-4 text-center font-bold"></div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Question Modal -->
+    <div id="question-modal" class="modal flex items-center justify-center">
+        <div class="bg-white rounded-[2.5rem] p-10 max-w-lg w-full shadow-2xl mx-4 border-8 border-indigo-50">
+            <div class="flex items-center gap-4 mb-8">
+                <div class="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center text-3xl">🧩</div>
+                <div>
+                    <h2 class="text-2xl font-black text-slate-900">Unlock Information</h2>
+                    <p class="text-indigo-500 font-bold text-sm tracking-wide uppercase">Helpful Tips & Conditionals</p>
+                </div>
+            </div>
+
+            <p class="text-xl font-bold text-slate-700 mb-8 p-6 bg-slate-50 rounded-2xl border-2 border-slate-100" id="question-text"></p>
+            <div class="grid grid-cols-1 gap-3" id="options-container"></div>
+            <div id="modal-feedback" class="mt-6 hidden p-4 rounded-xl font-bold text-center"></div>
+        </div>
+    </div>
+
+    <script>
+        let score = 0;
+        let solvedClues = 0;
+        const totalClues = 4;
+        const correctSolution = [
+            "AYŞE_KITCHEN",
+            "ALI_GARDEN",
+            "ELIF_LAUNDRY"
+        ];
+
+        const cards = [
+            { id: 1, title: "Card #1: The Kitchen", room: "Kitchen", icon: "🍳", q: "If you mix red and white, you _______ pink.", o: ["get", "will get", "got"], a: 0, info: "Info Unlocked: Ayşe is in the Kitchen. (Rule: Must)" },
+            { id: 2, title: "Card #2: Safety First", room: "Basement", icon: "⚡", q: "You _______ touch electrical wires with wet hands.", o: ["shouldn't", "mustn't", "don't have to"], a: 1, info: "Info Unlocked: The Laundry duty belongs to Elif." },
+            { id: 3, title: "Card #3: The Garden", room: "Garden", icon: "🌱", q: "If it rains tomorrow, we _______ water the plants.", o: ["don't", "won't", "didn't"], a: 1, info: "Info Unlocked: Ali is responsible for one task out of reach of the kitchen." },
+            { id: 4, title: "Card #4: Duty Rules", room: "Rules", icon: "📜", q: "To stay healthy, you _______ wash your hands often.", o: ["should", "must", "might"], a: 0, info: "Hint: Ali is not in the house. He is outside." }
+        ];
+
+        const badAdvice = [
+            { s: "You should play with fire.", c: "You shouldn't play with fire.", solved: false },
+            { s: "If you are tired, you must drive fast.", c: "If you are tired, you mustn't drive fast.", solved: false }
+        ];
+
+        function init() {
+            const container = document.getElementById('clue-cards-container');
+            cards.forEach(c => {
+                const card = document.createElement('div');
+                card.id = `card-${c.id}`;
+                card.className = "logic-card group";
+                card.innerHTML = `
+                    <div class="text-4xl mb-4 group-hover:scale-110 transition-transform">${c.icon}</div>
+                    <h4 class="font-black text-slate-800">${c.title}</h4>
+                    <p class="text-xs text-slate-400 mt-1">Status: Locked 🔒</p>
+                    <div class="absolute bottom-0 right-0 p-4 opacity-5 text-4xl font-black text-indigo-900">${c.id}</div>
+                `;
+                card.onclick = () => openQuestion(c);
+                container.appendChild(card);
+            });
+
+            const adviceList = document.getElementById('advice-container');
+            badAdvice.forEach((adv, i) => {
+                const item = document.createElement('div');
+                item.className = "flex flex-col md:flex-row gap-4 items-center bg-white p-4 rounded-2xl shadow-sm";
+                item.innerHTML = `
+                    <div class="flex-grow font-mono text-sm line-through text-red-400">"${adv.s}"</div>
+                    <input type="text" placeholder="Fix it here..." class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex-grow text-sm outline-none focus:border-orange-500">
+                    <button onclick="checkAdvice(${i}, this)" class="bg-orange-500 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-md hover:bg-orange-600 transition">FIX</button>
+                `;
+                adviceList.appendChild(item);
+            });
+        }
+
+        function openQuestion(c) {
+            if (document.getElementById(`card-${c.id}`).classList.contains('solved')) return;
+            
+            const modal = document.getElementById('question-modal');
+            const qText = document.getElementById('question-text');
+            const optCont = document.getElementById('options-container');
+            const feedback = document.getElementById('modal-feedback');
+            
+            qText.textContent = c.q;
+            optCont.innerHTML = '';
+            feedback.classList.add('hidden');
+            
+            c.o.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full p-5 bg-white border-2 border-slate-100 rounded-2xl text-left font-bold hover:border-indigo-500 hover:bg-indigo-50 transition active:scale-95 text-slate-700 shadow-sm";
+                btn.textContent = opt;
+                btn.onclick = () => {
+                    if (idx === c.a) {
+                        feedback.textContent = `Correct! ${c.info}`;
+                        feedback.className = "mt-6 p-4 rounded-xl font-bold text-center bg-green-100 text-green-700 block";
+                        score += 25;
+                        solvedClues++;
+                        document.getElementById('score').textContent = score;
+                        document.getElementById(`card-${c.id}`).classList.add('solved');
+                        document.getElementById(`card-${c.id}`).querySelector('p').textContent = "Info Unlocked! ✅";
+                        document.getElementById(`card-${c.id}`).innerHTML += `<div class="mt-4 p-3 bg-green-100 text-green-700 text-[10px] font-bold rounded-xl animate-pulse">${c.info}</div>`;
+                        setTimeout(() => modal.style.display = 'none', 2500);
+                    } else {
+                        feedback.textContent = "Oops! Try again.";
+                        feedback.className = "mt-6 p-4 rounded-xl font-bold text-center bg-red-100 text-red-700 block";
+                    }
+                };
+                optCont.appendChild(btn);
+            });
+
+            modal.style.display = 'flex';
+        }
+
+        function checkAdvice(idx, btn) {
+            const input = btn.previousElementSibling;
+            const userS = input.value.trim().toLowerCase().replace(/[.!?,]/g, "");
+            const targetS = badAdvice[idx].c.toLowerCase().replace(/[.!?,]/g, "");
+
+            if (userS === targetS) {
+                score += 50;
+                document.getElementById('score').textContent = score;
+                btn.parentElement.classList.add('bg-green-50', 'border-green-200');
+                btn.parentElement.innerHTML = `<div class="p-2 text-green-600 font-bold flex items-center justify-center w-full">Great fix! +50 Points ⭐</div>`;
+            } else {
+                alert("Almost! Check your spelling and modals (mustn't / shouldn't).");
+            }
+        }
+
+        function toggleCell(cell) {
+            if (cell.classList.contains('marked-yes')) {
+                cell.classList.remove('marked-yes');
+                cell.textContent = '';
+            } else if (cell.classList.contains('marked-no')) {
+                cell.classList.remove('marked-no');
+                cell.classList.add('marked-yes');
+                cell.textContent = '✓';
+            } else {
+                cell.classList.add('marked-no');
+                cell.textContent = 'X';
+            }
+        }
+
+        document.getElementById('solve-btn').onclick = () => {
+            const table = document.querySelector('table');
+            const rows = table.querySelectorAll('tbody tr');
+            const people = ["AYŞE", "ALI", "ELIF"];
+            const duties = ["KITCHEN", "LAUNDRY", "GARDEN"];
+            const selections = [];
+
+            rows.forEach((row, rIdx) => {
+                const cells = row.querySelectorAll('.grid-cell');
+                cells.forEach((cell, cIdx) => {
+                    if (cell.classList.contains('marked-yes')) {
+                        selections.push(`${people[cIdx]}_${duties[rIdx]}`);
+                    }
+                });
+            });
+
+            const feedback = document.getElementById('puzzle-feedback');
+            if (selections.length !== 3) {
+                feedback.textContent = "Assign exactly 3 duties (one per row/column)!";
+                feedback.className = "mt-4 text-center font-bold text-red-500";
+                return;
+            }
+
+            const isCorrect = selections.every(s => correctSolution.includes(s)) && selections.length === correctSolution.length;
+
+            if (isCorrect) {
+                feedback.textContent = "HOUSE CLEANED! MASTER LOGIC! 🎉";
+                feedback.className = "mt-4 text-center font-bold text-green-600 animate-bounce";
+                score += 200;
+                document.getElementById('score').textContent = score;
+                document.getElementById('game-status').textContent = "The house is sparkling clean, congrats!";
+                
+                // Final celebration
+                setTimeout(() => {
+                    alert(`Congratulations! Total Score: ${score}. You've solved the Messy House Logic Puzzle!`);
+                }, 1000);
+            } else {
+                feedback.textContent = "The house is still messy. Check the clues!";
+                feedback.className = "mt-4 text-center font-bold text-red-500";
+            }
+        };
+
+        init();
+    </script>
+</body>
+</html>
