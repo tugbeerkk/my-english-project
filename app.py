@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, jsonify
 import sqlite3
+import os
 
 app = Flask(__name__)
 
@@ -87,7 +88,8 @@ def register():
         conn.commit()
         conn.close()
         return jsonify({"message": "Success"}), 201
-    except:
+    except Exception as e:
+        print(f"Register Error: {e}")
         return jsonify({"error": "User already exists"}), 400
 
 @app.route('/api/login', methods=['POST'])
@@ -106,4 +108,6 @@ def login():
         return jsonify({"error": "Invalid credentials"}), 400
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    # Use environment port for deployment compatibility
+    port = int(os.environ.get('PORT', 3000))
+    app.run(debug=True, host='0.0.0.0', port=port)
