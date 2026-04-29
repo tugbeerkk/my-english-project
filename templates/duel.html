@@ -178,6 +178,7 @@
         });
 
         socket.on('online_users', (users) => {
+            console.log('Online users updated:', users);
             userList.innerHTML = users
                 .filter(u => u.id !== socket.id)
                 .map(u => `
@@ -188,7 +189,7 @@
                         </div>
                         <button onclick="challenge('${u.id}')" class="px-4 py-2 bg-indigo-600 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-indigo-500 transition-colors">Challenge</button>
                     </div>
-                `).join('') || '<div class="text-slate-600 italic text-sm text-center py-4">No other travelers online right now...</div>';
+                `).join('') || '<div class="text-slate-600 italic text-sm text-center py-4">No other travelers online right now... (Are you alone in the timeline?)</div>';
         });
 
         function challenge(id) {
