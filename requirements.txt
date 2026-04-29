@@ -1,6 +1,6 @@
-flask
-flask-socketio
-flask-bcrypt
-flask-jwt-extended
-gunicorn
-gevent-websocket
+Flask==3.0.3
+gunicorn==22.0.0
+flask-cors==4.0.1
+flask-socketio==5.4.1
+eventlet==0.35.2
+
