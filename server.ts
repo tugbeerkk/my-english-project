@@ -32,7 +32,7 @@ const io = new Server(httpServer);
 app.use(express.json());
 
 // Serve static files from 'public' folder
-app.use(express.static('public'));
+app.use(express.static('templates'));
 
 // Serve index.html from root
 app.get('/', (req, res) => {
