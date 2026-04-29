@@ -1,0 +1,6 @@
+flask
+flask-socketio
+flask-bcrypt
+flask-jwt-extended
+gunicorn
+gevent-websocket
