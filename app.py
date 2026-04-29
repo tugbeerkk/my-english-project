@@ -107,6 +107,10 @@ def login():
     else:
         return jsonify({"error": "Invalid credentials"}), 400
 
+@app.route('/healthz')
+def health_check():
+    return jsonify({"status": "healthy"}), 200
+
 if __name__ == '__main__':
     # Use environment port for deployment compatibility
     port = int(os.environ.get('PORT', 3000))
