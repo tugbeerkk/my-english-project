@@ -1,15 +1,13 @@
-import gevent.monkey
-gevent.monkey.patch_all()
-
+import os
+import sqlite3
+import random
 from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit, join_room, leave_room
-import sqlite3
-import os
-import random
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent')
+# threading mode is safer when C extensions fail to compile
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 # Irregular Verbs for Duel
 VERBS = [
@@ -37,8 +35,9 @@ matches = {} # room_id: {p1: {id, username, hp}, p2: {id, username, hp}, current
 
 # Create the database and user table
 def init_db():
-    conn = sqlite3.connect('database.db', timeout=20)
+    conn = sqlite3.connect('database.db', timeout=30)
     try:
+        conn.execute('PRAGMA journal_mode=WAL')
         cursor = conn.cursor()
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS users (
@@ -80,8 +79,9 @@ def duel_page():
 @app.route('/api/register', methods=['POST'])
 def register():
     data = request.json
-    conn = sqlite3.connect('database.db', timeout=20)
+    conn = sqlite3.connect('database.db', timeout=30)
     try:
+        conn.execute('PRAGMA journal_mode=WAL')
         cursor = conn.cursor()
         cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", 
                        (data['username'], data['password']))
@@ -98,8 +98,9 @@ def register():
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.json
-    conn = sqlite3.connect('database.db', timeout=20)
+    conn = sqlite3.connect('database.db', timeout=30)
     try:
+        conn.execute('PRAGMA journal_mode=WAL')
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM users WHERE username = ? AND password = ?", 
                        (data['username'], data['password']))
