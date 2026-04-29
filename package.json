@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "python3 app.py",
-    "start": "gunicorn -k geventwebsocket.gunicorn.workers.GeventWebSocketWorker -w 1 --bind 0.0.0.0:$PORT app:app",
+    "start": "gunicorn -w 1 --threads 100 --bind 0.0.0.0:$PORT app:app",
     "build": "echo 'No static build needed for Flask'",
     "preview": "python3 app.py",
     "clean": "rm -rf dist",
