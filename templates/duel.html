@@ -46,24 +46,50 @@
 </head>
 <body class="bg-[#0f172a] text-white min-h-screen overflow-hidden">
 
-    <script src="/socket.io/socket.io.js"></script>
+    <!-- Use 4.6.0 which is highly compatible with python-socketio 5.x -->
+    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
     <div id="lobby-container" class="relative min-h-screen p-8 flex flex-col items-center justify-center">
-        <div class="duel-card max-w-2xl w-full">
-            <div class="flex justify-between items-center mb-8 border-b border-slate-800 pb-6">
-                <h1 class="text-3xl font-black text-indigo-500 uppercase tracking-tighter">Duel Lobby</h1>
-                <a href="/" class="text-xs text-slate-500 hover:text-white transition uppercase font-mono tracking-widest">[ESC] Leave Lobby</a>
-            </div>
+        <!-- Back to Menu button -->
+        <a href="/" class="absolute top-8 left-8 flex items-center gap-2 text-slate-500 hover:text-white transition-all uppercase font-black text-xs tracking-widest bg-slate-800/50 px-4 py-2 rounded-lg border border-slate-700">
+            ← Ana Menü
+        </a>
+
+        <div class="duel-card max-w-md w-full relative">
+            <h2 class="text-3xl font-black italic tracking-tighter mb-8 bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent text-center">TIME DUEL</h2>
             
-            <div class="mb-8">
-                <h3 class="text-sm font-mono text-indigo-400 mb-4 uppercase tracking-widest">Active Guardians</h3>
-                <div id="user-list" class="space-y-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
-                    <!-- Users will appear here -->
-                    <div class="text-slate-600 italic text-sm">Searching for other time travelers...</div>
+            <div class="space-y-6">
+                <!-- Create Room -->
+                <button id="create-btn" class="w-full py-4 bg-indigo-600 rounded-xl font-black uppercase tracking-widest hover:bg-indigo-500 transition-all transform active:scale-95 shadow-lg shadow-indigo-500/20">
+                    Yeni Oda Oluştur
+                </button>
+
+                <div class="relative py-4">
+                    <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-700"></div></div>
+                    <div class="relative flex justify-center text-xs uppercase font-bold text-slate-500 bg-slate-900 px-4">VEYA</div>
+                </div>
+
+                <!-- Join Room -->
+                <div class="space-y-4">
+                    <input type="text" id="room-code-input" placeholder="Oda Kodunu Gir" maxlength="4" class="w-full px-6 py-4 bg-slate-800/50 border border-slate-700 rounded-xl text-center font-black text-2xl tracking-widest focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all text-white">
+                    <button id="join-btn" class="w-full py-4 bg-purple-600 rounded-xl font-black uppercase tracking-widest hover:bg-purple-500 transition-all transform active:scale-95 shadow-lg shadow-purple-500/20">
+                        Odaya Katıl
+                    </button>
                 </div>
             </div>
 
-            <div class="p-6 bg-indigo-500/10 rounded-2xl border border-indigo-500/20">
-                <p class="text-xs text-slate-400 font-mono text-center uppercase tracking-widest">Wait for a challenge or select a traveler to duel</p>
+            <!-- Connection Status -->
+            <div class="mt-8 flex items-center justify-center gap-2">
+                <div id="status-dot" class="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></div>
+                <span id="status-text" class="text-[10px] font-black uppercase tracking-widest text-slate-500">Bağlanılıyor...</span>
+            </div>
+
+            <!-- Waiting Modal -->
+            <div id="waiting-modal" class="hidden absolute inset-0 bg-slate-900 flex flex-col items-center justify-center p-8 z-50 rounded-[2rem] border-2 border-indigo-500/50">
+                <div class="text-xs font-black text-indigo-400 uppercase tracking-widest mb-2">ODA KODUNUZ</div>
+                <div class="text-7xl font-black text-white mb-2 drop-shadow-[0_0_20px_rgba(79,70,229,0.6)] cursor-pointer hover:scale-105 transition-transform" id="display-code" onclick="copyCode()">0000</div>
+                <div id="copy-status" class="text-[10px] text-emerald-400 font-bold uppercase mb-6 opacity-0 transition-opacity">KOD KOPYALANDI!</div>
+                <p class="text-slate-400 text-center text-sm font-medium leading-relaxed max-w-[220px]">Arkadaşın bu kodu girince düello otomatik olarak başlayacak.</p>
+                <button id="cancel-btn" class="mt-8 px-6 py-2 border border-slate-700 text-slate-500 hover:text-white hover:border-white text-xs font-black uppercase tracking-widest rounded-full transition-all">İptal Et</button>
             </div>
         </div>
     </div>
@@ -154,66 +180,119 @@
     </div>
 
     <script>
-        const socket = io();
-        const username = localStorage.getItem('username') || `Traveler_${Math.floor(Math.random()*1000)}`;
+        const socket = io({
+            transports: ['websocket', 'polling'],
+            reconnectionAttempts: 5
+        });
+
+        const currentUsername = localStorage.getItem('username') || `Traveler_${Math.floor(Math.random()*1000)}`;
         
-        let myId = null;
-        let opponentId = null;
         let p1Data = null;
         let p2Data = null;
-        let challengerId = null;
 
         // Elements
         const lobbyContainer = document.getElementById('lobby-container');
         const gameContainer = document.getElementById('game-container');
-        const userList = document.getElementById('user-list');
-        const challengeModal = document.getElementById('challenge-modal');
         const input = document.getElementById('answer-input');
+        
+        const createBtn = document.getElementById('create-btn');
+        const joinBtn = document.getElementById('join-btn');
+        const roomCodeInput = document.getElementById('room-code-input');
+        const waitingModal = document.getElementById('waiting-modal');
+        const displayCode = document.getElementById('display-code');
+        const cancelBtn = document.getElementById('cancel-btn');
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
 
-        // Initialize
-        socket.emit('join_lobby', username);
-
+        // Socket Status
         socket.on('connect', () => {
-            myId = socket.id;
+            statusDot.classList.remove('bg-yellow-500', 'bg-red-500');
+            statusDot.classList.add('bg-emerald-500');
+            statusText.textContent = "Bağlı";
+            console.log('Connected to timeline with ID:', socket.id);
         });
 
-        socket.on('online_users', (users) => {
-            console.log('Online users updated:', users);
-            userList.innerHTML = users
-                .filter(u => u.id !== socket.id)
-                .map(u => `
-                    <div class="flex items-center justify-between p-4 bg-slate-800/40 rounded-xl border border-slate-700/50 group hover:border-indigo-500/50 transition-all">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-indigo-500/20 rounded-lg flex items-center justify-center text-xl">👤</div>
-                            <span class="font-bold text-slate-200">${u.username}</span>
-                        </div>
-                        <button onclick="challenge('${u.id}')" class="px-4 py-2 bg-indigo-600 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-indigo-500 transition-colors">Challenge</button>
-                    </div>
-                `).join('') || '<div class="text-slate-600 italic text-sm text-center py-4">No other travelers online right now... (Are you alone in the timeline?)</div>';
+        socket.on('connect_error', (err) => {
+            console.error('Connection error:', err);
+            statusText.textContent = "Hata: " + err.message;
         });
 
-        function challenge(id) {
-            socket.emit('challenge', id);
-            alert('Challenge sent!');
-        }
-
-        socket.on('challenge_received', (data) => {
-            challengerId = data.fromId;
-            document.getElementById('challenger-text').textContent = `${data.fromName} wants to duel!`;
-            challengeModal.classList.remove('hidden');
-            challengeModal.classList.add('flex');
+        socket.on('disconnect', () => {
+            statusDot.classList.remove('bg-emerald-500', 'bg-yellow-500');
+            statusDot.classList.add('bg-red-500');
+            statusText.textContent = "Bağlantı Kesildi";
         });
 
-        function acceptChallenge() {
-            socket.emit('accept_challenge', challengerId);
-            challengeModal.classList.add('hidden');
+        // Back button and room code handling
+        function copyCode() {
+            const code = displayCode.textContent;
+            if (code === "0000" || code === "----") return;
+            
+            navigator.clipboard.writeText(code).then(() => {
+                const status = document.getElementById('copy-status');
+                status.classList.remove('opacity-0');
+                setTimeout(() => status.classList.add('opacity-0'), 2000);
+            }).catch(err => {
+                console.error('Copy failed:', err);
+                const el = document.createElement('textarea');
+                el.value = code;
+                document.body.appendChild(el);
+                el.select();
+                document.execCommand('copy');
+                document.body.removeChild(el);
+                
+                const status = document.getElementById('copy-status');
+                status.classList.remove('opacity-0');
+                setTimeout(() => status.classList.add('opacity-0'), 2000);
+            });
         }
 
-        function closeChallenge() {
-            challengeModal.classList.add('hidden');
-        }
+        // Socket Events
+        createBtn.onclick = () => {
+            if (!socket.connected) {
+                alert('Sunucuya bağlanılamadı. Lütfen sayfayı yenileyin.');
+                return;
+            }
+            console.log('Oda oluşturuluyor...', currentUsername);
+            displayCode.textContent = "...."; // Loading state
+            socket.emit('create_room', currentUsername);
+            
+            // Timeout check
+            setTimeout(() => {
+                if (displayCode.textContent === "....") {
+                    alert('Oda oluşturma zaman aşımına uğradı. Tekrar deneyin.');
+                    displayCode.textContent = "----";
+                }
+            }, 5000);
+        };
+
+        socket.on('room_created', (code) => {
+            console.log('Oda oluşturuldu. Kod:', code);
+            displayCode.textContent = code;
+            waitingModal.classList.remove('hidden');
+        });
+
+        cancelBtn.onclick = () => {
+            const code = displayCode.textContent;
+            socket.emit('cancel_room', code);
+            waitingModal.classList.add('hidden');
+            displayCode.textContent = "0000";
+        };
+
+        joinBtn.onclick = () => {
+            const code = roomCodeInput.value.trim();
+            if (code.length === 4) {
+                console.log('Odaya katılınıyor:', code);
+                socket.emit('join_room_code', { code, username: currentUsername });
+            } else {
+                alert('Lütfen 4 haneli oda kodunu girin.');
+            }
+        };
+
+        socket.on('error', (msg) => alert(msg));
 
         socket.on('match_start', (data) => {
+            waitingModal.classList.add('hidden');
             lobbyContainer.classList.add('hidden');
             gameContainer.classList.remove('hidden');
             document.getElementById('match-id').textContent = data.matchId;
@@ -269,8 +348,8 @@
             modal.classList.remove('hidden');
             modal.classList.add('flex');
             
-            document.getElementById('end-title').textContent = data.winner === username ? "VICTORY!" : "DEFEAT!";
-            document.getElementById('end-text').textContent = data.winner === username ? 
+            document.getElementById('end-title').textContent = data.winner === currentUsername ? "VICTORY!" : "DEFEAT!";
+            document.getElementById('end-text').textContent = data.winner === currentUsername ? 
                 "You secured the timeline with your faster reflexes." : 
                 "The timeline was altered. Better luck next time.";
         });
