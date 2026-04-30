@@ -6,8 +6,8 @@ from flask_socketio import SocketIO, emit, join_room, leave_room
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
-# eventlet is the preferred async mode for production Socket.io with Flask
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet', logger=True, engineio_logger=True)
+# threading mode is safer when C extensions or newer Python versions fail with eventlet
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', logger=True, engineio_logger=True)
 
 # Irregular Verbs for Duel
 VERBS = [
@@ -133,8 +133,8 @@ def handle_create_room(username):
     }
     join_room(room_id)
     print(f"Room Created: {room_id} by {username} ({request.sid})")
-    # Emit only to the sender
-    emit('room_created', room_id)
+    # Using emit directly to sender
+    emit('room_created', room_id, room=request.sid)
 
 @socketio.on('cancel_room')
 def handle_cancel_room(room_id):
