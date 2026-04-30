@@ -6,8 +6,9 @@ from flask_socketio import SocketIO, emit, join_room, leave_room
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
-# threading mode is safer when C extensions fail to compile
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+# threading mode is safer when C extensions fail to compile. 
+# logger/engineio_logger=True helps debug protocol version mismatches.
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', logger=True, engineio_logger=True)
 
 # Irregular Verbs for Duel
 VERBS = [
@@ -30,7 +31,6 @@ VERBS = [
 ]
 
 # Game State
-online_users = {} # id: {username, id}
 matches = {} # room_id: {p1: {id, username, hp}, p2: {id, username, hp}, current_verb}
 
 # Create the database and user table
@@ -121,57 +121,64 @@ def healthz():
 def handle_connect():
     print(f"User connected: {request.sid}")
 
-@socketio.on('disconnect')
-def handle_disconnect():
-    if request.sid in online_users:
-        del online_users[request.sid]
-        emit_online_users()
-
-def emit_online_users():
-    emit('online_users', list(online_users.values()), broadcast=True)
-
-@socketio.on('join_lobby')
-def handle_join_lobby(username):
-    online_users[request.sid] = {"id": request.sid, "username": username}
-    emit_online_users()
-
-@socketio.on('challenge')
-def handle_challenge(target_id):
-    if target_id in online_users:
-        emit('challenge_received', {
-            "fromId": request.sid,
-            "fromName": online_users[request.sid]["username"]
-        }, room=target_id)
-
-@socketio.on('accept_challenge')
-def handle_accept_challenge(challenger_id):
-    if challenger_id not in online_users or request.sid not in online_users:
-        return
-
-    room_id = f"match_{random.randint(1000, 9999)}"
-    p1 = online_users[challenger_id]
-    p2 = online_users[request.sid]
-
-    match_data = {
-        "matchId": room_id,
-        "p1": {"id": p1["id"], "username": p1["username"], "hp": 100},
-        "p2": {"id": p2["id"], "username": p2["username"], "hp": 100},
+@socketio.on('create_room')
+def handle_create_room(username):
+    room_id = str(random.randint(1000, 9999))
+    while room_id in matches:
+        room_id = str(random.randint(1000, 9999))
+    
+    matches[room_id] = {
+        "p1": {"id": request.sid, "username": username, "hp": 100},
+        "p2": None,
         "current_verb": random.choice(VERBS)
     }
-    matches[room_id] = match_data
+    join_room(room_id)
+    print(f"Room Created: {room_id} by {username} ({request.sid})")
+    emit('room_created', room_id, to=request.sid)
 
-    join_room(room_id, sid=challenger_id)
-    join_room(room_id, sid=request.sid)
+@socketio.on('cancel_room')
+def handle_cancel_room(room_id):
+    room_id = str(room_id)
+    if room_id in matches:
+        if matches[room_id]['p1']['id'] == request.sid:
+            del matches[room_id]
+            leave_room(room_id)
+            print(f"Room Cancelled: {room_id}")
 
-    emit('match_start', match_data, room=room_id)
-    emit('new_verb', match_data["current_verb"]["v1"], room=room_id)
+@socketio.on('join_room_code')
+def handle_join_room(data):
+    room_id = str(data['code']).strip()
+    username = data['username']
+    
+    print(f"Attempting to join room: {room_id} by {username} ({request.sid})")
+    
+    if room_id in matches:
+        if matches[room_id]['p2'] is None:
+            matches[room_id]['p2'] = {"id": request.sid, "username": username, "hp": 100}
+            join_room(room_id)
+            
+            match_data = {
+                "matchId": room_id,
+                "p1": matches[room_id]['p1'],
+                "p2": matches[room_id]['p2']
+            }
+            emit('match_start', match_data, room=room_id)
+            emit('new_verb', matches[room_id]["current_verb"]["v1"], room=room_id)
+            print(f"Match Started in room {room_id}")
+        else:
+            emit('error', 'Bu oda zaten dolu.', to=request.sid)
+    else:
+        emit('error', 'Oda bulunamadı. Kodu kontrol edin.', to=request.sid)
 
 @socketio.on('submit_answer')
 def handle_submit_answer(answer):
     # Find match for this sid
     match_id = None
     for mid, mdata in matches.items():
-        if mdata["p1"]["id"] == request.sid or mdata["p2"]["id"] == request.sid:
+        if mdata.get("p1") and mdata["p1"]["id"] == request.sid:
+            match_id = mid
+            break
+        if mdata.get("p2") and mdata["p2"]["id"] == request.sid:
             match_id = mid
             break
     
@@ -182,14 +189,13 @@ def handle_submit_answer(answer):
     correct_v3 = match["current_verb"]["v3"].lower()
     
     if answer.lower() == correct_v3:
-        # Damage opponent
         attacker_id = request.sid
+        # Damage opponent
         if match["p1"]["id"] == attacker_id:
             match["p2"]["hp"] -= 10
         else:
             match["p1"]["hp"] -= 10
         
-        # Check for win
         if match["p1"]["hp"] <= 0 or match["p2"]["hp"] <= 0:
             winner_name = match["p1"]["username"] if match["p2"]["hp"] <= 0 else match["p2"]["username"]
             emit('match_update', {**match, "attacker_id": attacker_id}, room=match_id)
