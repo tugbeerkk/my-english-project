@@ -180,10 +180,8 @@
     </div>
 
     <script>
-        const socket = io({
-            transports: ['websocket', 'polling'],
-            reconnectionAttempts: 5
-        });
+        // Automatic selection of protocols
+        const socket = io();
 
         const currentUsername = localStorage.getItem('username') || `Traveler_${Math.floor(Math.random()*1000)}`;
         
